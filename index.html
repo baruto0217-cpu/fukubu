@@ -187,11 +187,28 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
 .mpill.miss{background:#f5f4f0;color:#aaa;border:1px solid #ddd;text-decoration:line-through}
 .mpill i{font-size:12px}
 
-/* empty */
+/* 次の確認候補 */
+.next-section{background:var(--c-white);border:1.5px solid #C4C0F5;border-radius:14px;padding:14px;margin-bottom:12px}
+.next-title{font-size:11px;font-weight:700;color:var(--c-purple-mid);letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:10px}
+.next-groups{display:flex;flex-direction:column;gap:8px}
+.next-group{display:flex;flex-direction:column;gap:5px}
+.next-group-label{font-size:11px;font-weight:700;color:var(--c-sub);margin-bottom:2px}
+.next-pills{display:flex;flex-wrap:wrap;gap:5px}
+.next-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:12px;background:var(--c-purple-light);color:var(--c-purple-mid);border:1px solid #c4c0f5}
+.next-pill i{font-size:13px}
 .empty{text-align:center;padding:3rem 1rem;color:#aaa}
 .empty i{font-size:48px;display:block;margin-bottom:12px;opacity:.3}
 .empty p{font-size:14px;line-height:1.6}
 .disclaimer{font-size:11px;color:#bbb;text-align:center;line-height:1.6;margin-top:12px;padding:0 8px}
+
+/* SVG 腹部図 */
+.reg-cell{transition:fill .12s;fill:transparent}
+.reg-cell.sel{fill:rgba(83,74,183,.18)}
+.reg-cell:active{fill:rgba(83,74,183,.1)}
+.reg-label{font-size:14px;font-weight:700;fill:#555;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif}
+.reg-sublabel{font-size:11px;fill:#888;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif}
+.reg-cell.sel + text,.reg-label.sel{fill:var(--c-purple-mid)}
+/* 選択時ラベル色はJSで制御 */
 </style>
 </head>
 <body>
@@ -210,7 +227,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
   </div>
   <div class="input-scroll">
 
-    <div class="sec">
+    <div class="sec" id="sec-patient">
       <div class="sec-head"><div class="opqrst-badge" style="background:#FEF0F5;color:#8B1A46">患者</div><div class="sec-label">患者属性</div><span class="sec-hint">年齢・性別</span></div>
       <div class="sec-body">
         <div class="attr-row">
@@ -222,32 +239,88 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
       </div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-onset">
       <div class="sec-head"><div class="opqrst-badge">O</div><div class="sec-label">発症様式</div></div>
       <div class="sec-body"><div class="chips" id="onset-chips"></div></div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-provoke">
       <div class="sec-head"><div class="opqrst-badge">P</div><div class="sec-label">増悪・寛解因子</div><span class="sec-hint">複数可</span></div>
       <div class="sec-body"><div class="chips" id="provoke-chips"></div></div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-quality">
       <div class="sec-head"><div class="opqrst-badge">Q</div><div class="sec-label">痛みの性質</div></div>
       <div class="sec-body"><div class="chips" id="quality-chips"></div></div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-region">
       <div class="sec-head"><div class="opqrst-badge">R</div><div class="sec-label">部位・放散痛</div></div>
       <div class="sec-body">
-        <p style="font-size:11px;color:var(--c-sub);margin-bottom:6px">主な痛みの部位</p>
-        <div class="rg" id="region-grid"></div>
+        <p style="font-size:11px;color:var(--c-sub);margin-bottom:8px">主な痛みの部位（タップで選択）</p>
+        <!-- SVG 腹部9分割図 -->
+        <div style="display:flex;justify-content:center;margin-bottom:10px">
+          <svg id="abdomen-svg" viewBox="0 0 300 320" width="100%" style="max-width:320px;touch-action:manipulation" xmlns="http://www.w3.org/2000/svg">
+            <!-- 体の輪郭 -->
+            <rect x="10" y="10" width="280" height="300" rx="40" ry="40" fill="#F9F8F5" stroke="#D0CCC4" stroke-width="1.5"/>
+            <!-- グリッド縦線 -->
+            <line x1="110" y1="10" x2="110" y2="310" stroke="#D0CCC4" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="190" y1="10" x2="190" y2="310" stroke="#D0CCC4" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- グリッド横線 -->
+            <line x1="10" y1="117" x2="290" y2="117" stroke="#D0CCC4" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="10" y1="210" x2="290" y2="210" stroke="#D0CCC4" stroke-width="1" stroke-dasharray="4,3"/>
+
+            <!-- 各セル（タップ領域） -->
+            <!-- 右上腹部 RUQ -->
+            <rect id="reg-rug" class="reg-cell" x="11" y="11" width="98" height="105" rx="38" ry="10" onclick="selRegion('rug')" fill="transparent" cursor="pointer"/>
+            <!-- 心窩部 epigastric -->
+            <rect id="reg-epigastric" class="reg-cell" x="111" y="11" width="78" height="105" rx="10" ry="10" onclick="selRegion('epigastric')" fill="transparent" cursor="pointer"/>
+            <!-- 左上腹部 LUQ -->
+            <rect id="reg-lug" class="reg-cell" x="191" y="11" width="98" height="105" rx="10" ry="38" onclick="selRegion('lug')" fill="transparent" cursor="pointer"/>
+
+            <!-- 右側腹部 r_flank -->
+            <rect id="reg-r_flank" class="reg-cell" x="11" y="118" width="98" height="91" rx="0" onclick="selRegion('r_flank')" fill="transparent" cursor="pointer"/>
+            <!-- 臍周囲 peri -->
+            <rect id="reg-peri" class="reg-cell" x="111" y="118" width="78" height="91" rx="0" onclick="selRegion('peri')" fill="transparent" cursor="pointer"/>
+            <!-- 左側腹部 l_flank -->
+            <rect id="reg-l_flank" class="reg-cell" x="191" y="118" width="98" height="91" rx="0" onclick="selRegion('l_flank')" fill="transparent" cursor="pointer"/>
+
+            <!-- 右下腹部 RLQ -->
+            <rect id="reg-rlq" class="reg-cell" x="11" y="211" width="98" height="98" rx="10" ry="38" onclick="selRegion('rlq')" fill="transparent" cursor="pointer"/>
+            <!-- 下腹部 sup -->
+            <rect id="reg-sup" class="reg-cell" x="111" y="211" width="78" height="98" rx="10" ry="10" onclick="selRegion('sup')" fill="transparent" cursor="pointer"/>
+            <!-- 左下腹部 LLQ -->
+            <rect id="reg-llq" class="reg-cell" x="191" y="211" width="98" height="98" rx="10" ry="38" onclick="selRegion('llq')" fill="transparent" cursor="pointer"/>
+
+            <!-- ラベル -->
+            <text x="60" y="60" text-anchor="middle" class="reg-label" id="lbl-rug">右上</text>
+            <text x="60" y="78" text-anchor="middle" class="reg-sublabel" id="sub-rug">腹部</text>
+            <text x="150" y="60" text-anchor="middle" class="reg-label" id="lbl-epigastric">心窩部</text>
+            <text x="240" y="60" text-anchor="middle" class="reg-label" id="lbl-lug">左上</text>
+            <text x="240" y="78" text-anchor="middle" class="reg-sublabel" id="sub-lug">腹部</text>
+
+            <text x="60" y="157" text-anchor="middle" class="reg-label" id="lbl-r_flank">右</text>
+            <text x="60" y="175" text-anchor="middle" class="reg-sublabel" id="sub-r_flank">側腹部</text>
+            <text x="150" y="157" text-anchor="middle" class="reg-label" id="lbl-peri">臍</text>
+            <text x="150" y="175" text-anchor="middle" class="reg-sublabel" id="sub-peri">周囲</text>
+            <text x="240" y="157" text-anchor="middle" class="reg-label" id="lbl-l_flank">左</text>
+            <text x="240" y="175" text-anchor="middle" class="reg-sublabel" id="sub-l_flank">側腹部</text>
+
+            <text x="60" y="255" text-anchor="middle" class="reg-label" id="lbl-rlq">右下</text>
+            <text x="60" y="273" text-anchor="middle" class="reg-sublabel" id="sub-rlq">腹部</text>
+            <text x="150" y="255" text-anchor="middle" class="reg-label" id="lbl-sup">下腹部</text>
+            <text x="240" y="255" text-anchor="middle" class="reg-label" id="lbl-llq">左下</text>
+            <text x="240" y="273" text-anchor="middle" class="reg-sublabel" id="sub-llq">腹部</text>
+          </svg>
+        </div>
+        <!-- 追加選択肢 -->
+        <div class="chips" id="region-extra" style="margin-bottom:12px"></div>
         <p style="font-size:11px;color:var(--c-sub);margin-bottom:6px">放散痛</p>
         <div class="chips" id="radiation-chips"></div>
       </div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-severity">
       <div class="sec-head"><div class="opqrst-badge">S</div><div class="sec-label">重症度 NRS</div><span class="sec-hint">0=なし　10=最大</span></div>
       <div class="sec-body">
         <div class="nrs-wrap">
@@ -260,7 +333,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
       </div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-timing">
       <div class="sec-head"><div class="opqrst-badge">T</div><div class="sec-label">持続時間・経過</div></div>
       <div class="sec-body">
         <div class="chips" id="timing-chips" style="margin-bottom:8px"></div>
@@ -268,7 +341,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
       </div>
     </div>
 
-    <div class="sec">
+    <div class="sec" id="sec-findings">
       <div class="sec-head"><div class="opqrst-badge red">所見</div><div class="sec-label">身体所見・バイタル</div><span class="sec-hint">複数可</span></div>
       <div class="sec-body"><div class="chks" id="findings-grid"></div></div>
     </div>
@@ -332,17 +405,24 @@ const QUALITY=[
   {v:'bloating',label:'膨満感',icon:'ti-circle'},
   {v:'diffuse_q',label:'びまん性',icon:'ti-arrows-left-right'},
 ];
-const REGIONS=[
-  {v:'rug',label:'右上腹部',icon:'ti-arrow-up-right',note:'肝・胆嚢'},
-  {v:'epigastric',label:'心窩部',icon:'ti-arrow-up',note:'胃・膵・心'},
-  {v:'lug',label:'左上腹部',icon:'ti-arrow-up-left',note:'脾・胃'},
-  {v:'rlq',label:'右下腹部',icon:'ti-arrow-down-right',note:'虫垂・盲腸'},
-  {v:'peri',label:'臍周囲',icon:'ti-circle-dot',note:'小腸・虫垂初期'},
-  {v:'llq',label:'左下腹部',icon:'ti-arrow-down-left',note:'S状結腸'},
-  {v:'sup',label:'下腹部',icon:'ti-arrow-down',note:'膀胱・骨盤'},
-  {v:'flank',label:'側腹部・腰部',icon:'ti-arrows-left-right',note:'腎・尿管'},
+// SVG部位（9分割＋追加）
+const REGIONS_SVG=[
+  {v:'rug',label:'右上腹部',note:'肝・胆嚢'},
+  {v:'epigastric',label:'心窩部',note:'胃・膵・心'},
+  {v:'lug',label:'左上腹部',note:'脾・胃'},
+  {v:'r_flank',label:'右側腹部',note:'右腎・尿管'},
+  {v:'peri',label:'臍周囲',note:'小腸・虫垂初期'},
+  {v:'l_flank',label:'左側腹部',note:'左腎・尿管'},
+  {v:'rlq',label:'右下腹部',note:'虫垂・盲腸'},
+  {v:'sup',label:'下腹部',note:'膀胱・骨盤'},
+  {v:'llq',label:'左下腹部',note:'S状結腸'},
+];
+const REGIONS_EXTRA=[
+  {v:'flank',label:'腰部（背側）',icon:'ti-arrows-left-right',note:'腎・尿管'},
   {v:'diffuse',label:'全腹部・びまん性',icon:'ti-arrows-up-left-down-right',note:'腹膜炎・虚血'},
 ];
+// 旧REGIONS（互換用）
+const REGIONS=[...REGIONS_SVG,...REGIONS_EXTRA];
 const RADIATION=[
   {v:'back',label:'背部へ'},{v:'shoulder',label:'肩・肩甲骨へ'},
   {v:'groin',label:'鼠径部・陰部へ'},{v:'chest',label:'胸部へ'},{v:'none',label:'放散なし'},
@@ -375,7 +455,7 @@ const FINDINGS=[
 
 const OL={sudden:'突然・瞬間的',acute:'急激（数分）',gradual:'徐々に',insidious:'緩やかに'};
 const QL={colic:'疝痛',sharp:'鋭い刺すような',burning:'灼熱感',dull:'鈍い重苦しい',squeezing:'締め付け',tearing:'引き裂かれる',bloating:'膨満感',diffuse_q:'びまん性'};
-const RL={rug:'右上腹部',epigastric:'心窩部',lug:'左上腹部',rlq:'右下腹部',peri:'臍周囲',llq:'左下腹部',sup:'下腹部',diffuse:'全腹部・びまん性',flank:'側腹部・腰部'};
+const RL={rug:'右上腹部',epigastric:'心窩部',lug:'左上腹部',rlq:'右下腹部',peri:'臍周囲',llq:'左下腹部',sup:'下腹部',diffuse:'全腹部・びまん性',flank:'腰部（背側）',r_flank:'右側腹部',l_flank:'左側腹部'};
 const RaL={back:'背部',shoulder:'肩・肩甲骨',groin:'鼠径部・陰部',chest:'胸部',none:'なし'};
 const TL={minutes:'数分〜1時間',hours:'数時間〜1日',days:'数日',weeks:'1週間以上'};
 const DL={constant:'持続性',intermittent:'間欠性',progressive:'増悪傾向',improving:'改善傾向'};
@@ -402,23 +482,24 @@ const DISEASES=[
   {name:'急性胃炎 / AGML',group:'心窩部（Epigastric）',urgency:'mid',ul:'準緊急',features:'心窩部の灼熱感・悪心嘔吐。食後悪化。ストレス・アルコール・NSAIDs・ウイルス感染が誘因。比較的急性経過。',ft:'心窩部圧痛（軽度）、悪心嘔吐',tx:'制酸薬・PPI投与、輸液、内視鏡（必要時）',r:{rg:['epigastric'],qu:['burning','dull'],pr:['food_worse'],on:['acute','gradual'],fi:['nausea']}},
   {name:'胃アニサキス症',group:'心窩部（Epigastric）',urgency:'high',ul:'要緊急対応',features:'魚介類（サバ・イカ・アジなど）の刺身摂取後数時間以内の激しい心窩部痛。悪心嘔吐。内視鏡で虫体を除去すれば即座に症状消失。',ft:'心窩部強圧痛、悪心嘔吐、食事歴（魚介の刺身）',tx:'上部消化管内視鏡（診断・治療）— 虫体除去',r:{rg:['epigastric'],on:['acute'],qu:['sharp','colic'],pr:['food_worse'],fi:['nausea'],sv:6}},
   {name:'胃食道逆流症（GERD）',group:'心窩部（Epigastric）',urgency:'low',ul:'非緊急',features:'食後・臥位で悪化する灼熱感・胸やけ。心窩部〜胸骨後方の灼熱感。酸逆流感。慢性経過。',ft:'特記所見なし（または軽度心窩部圧痛）',tx:'PPI投与、生活習慣改善（食後2時間は臥位を避ける）、上部消化管内視鏡',r:{rg:['epigastric'],qu:['burning'],pr:['food_worse'],ra:['chest'],ti:['weeks'],du:['intermittent']}},
-  {name:'脾梗塞',group:'左上腹部（LUQ）',urgency:'high',ul:'要緊急対応',features:'突然の左上腹部痛。左肩への放散痛（Kehr徴候）。心房細動・血液疾患・感染性心内膜炎などが背景疾患として多い。',ft:'左上腹部圧痛、発熱',tx:'腹部造影CT、基礎疾患の精査・治療',r:{rg:['lug'],on:['sudden','acute'],qu:['sharp','dull'],ra:['shoulder'],fi:['fever','tenderness']}},
+  {name:'脾梗塞',group:'左上腹部（LUQ）',urgency:'high',ul:'要緊急対応',features:'突然の左上腹部痛。左肩への放散痛（Kehr徴候）。心房細動・血液疾患・感染性心内膜炎などが背景疾患として多い。',ft:'左上腹部圧痛、発熱',tx:'腹部造影CT、基礎疾患の精査・治療',r:{rg:['lug','l_flank'],on:['sudden','acute'],qu:['sharp','dull'],ra:['shoulder'],fi:['fever','tenderness']}},
   {name:'急性虫垂炎（初期・臍周囲期）',group:'臍周囲 → 右下腹部',urgency:'high',ul:'要緊急対応',features:'臍周囲痛から始まり右下腹部へ移動（Shifting pain）。食欲不振・発熱・悪心嘔吐。McBurney点圧痛。放置すると穿孔・腹膜炎。若年〜中年に多い。',ft:'臍周囲圧痛→McBurney点圧痛、Rovsing徴候、発熱',tx:'腹部CT・超音波、血液検査（WBC・CRP）、外科コンサルト（虫垂切除術）',r:{rg:['peri','rlq'],on:['gradual','acute'],qu:['dull','sharp'],fi:['tenderness','rovsing','rebound','fever','nausea'],du:['progressive'],age:['child','young','middle']}},
   {name:'腸間膜リンパ節炎',group:'臍周囲 → 右下腹部',urgency:'mid',ul:'準緊急',features:'小児〜若年者に多い。上気道感染後の臍周囲〜右下腹部痛。虫垂炎との鑑別が重要。発熱・リンパ節腫脹。多くは保存的に軽快する。',ft:'臍周囲〜右下腹部圧痛（比較的軽度）、発熱、リンパ節腫脹',tx:'腹部超音波・CT（虫垂炎除外）、経過観察、対症療法',r:{rg:['peri','rlq'],on:['gradual'],qu:['dull'],fi:['tenderness','fever'],age:['child','young']}},
   {name:'腸閉塞（イレウス）',group:'臍周囲・全腹部',urgency:'high',ul:'要緊急対応',features:'波状の疝痛と嘔吐。腹部膨満。腸蠕動音亢進（金属音）→消失（絞扼）。腹部手術歴・ヘルニアの既往。手術歴がある患者の腹痛は必ず考慮。',ft:'腹部膨満、腸蠕動音変化（亢進または消失）、嘔吐、排ガス停止',tx:'腹部X線・CT、経鼻胃管、輸液、外科コンサルト',r:{rg:['peri','diffuse','rlq','llq','sup','epigastric'],qu:['colic','bloating','dull'],on:['acute','gradual'],du:['intermittent','progressive'],fi:['nausea','tenderness']}},
   {name:'急性虫垂炎',group:'右下腹部（RLQ）',urgency:'high',ul:'要緊急対応',features:'右下腹部の圧痛が主体。McBurney点圧痛・Rovsing徴候陽性。発熱・食欲不振。穿孔すると汎発性腹膜炎へ進展。若年〜中年に多い。',ft:'McBurney点圧痛、Rovsing徴候、反跳痛（Blumberg）、発熱',tx:'腹部CT・超音波、WBC・CRP、腹腔鏡下虫垂切除術',r:{rg:['rlq'],on:['gradual','acute'],qu:['sharp','dull'],fi:['tenderness','rovsing','rebound','psoas','fever','nausea'],du:['progressive'],sv:4,age:['child','young','middle']}},
   {name:'S状結腸憩室炎',group:'左下腹部（LLQ）',urgency:'high',ul:'要緊急対応',features:'高齢者に多い左下腹部痛。発熱・CRP上昇。「左側の虫垂炎」とも呼ばれる。便秘・下痢を伴う。穿孔・膿瘍形成の合併に注意。',ft:'左下腹部圧痛、筋性防御（穿孔時）、発熱、腸音低下',tx:'腹部CT、抗生剤（セフェム+メトロニダゾール）、絶食・補液、外科コンサルト',r:{rg:['llq'],on:['gradual','acute'],qu:['dull','sharp'],fi:['tenderness','fever','rebound'],ti:['hours','days'],age:['elderly','middle']}},
   {name:'虚血性腸炎',group:'左下腹部（LLQ）',urgency:'high',ul:'要緊急対応',features:'高齢者・動脈硬化背景の突然の左下腹部痛と血便のセット。腸管の一過性虚血。多くは保存的に軽快するが重症化に注意。',ft:'左下腹部圧痛、血便・下血',tx:'大腸内視鏡、腹部CT、輸液・絶食、抗生剤',r:{rg:['llq','diffuse'],on:['sudden','acute'],qu:['dull','sharp'],fi:['tenderness','melena'],age:['elderly','middle']}},
-  {name:'潰瘍性大腸炎（増悪期）',group:'左下腹部（LLQ）',urgency:'mid',ul:'準緊急',features:'血性粘液便・下痢・左下腹部痛の慢性反復。再燃と寛解を繰り返す。発熱・体重減少。大腸内視鏡が確診。若年〜中年に多い。',ft:'左下腹部〜全腹部圧痛、血性下痢、発熱',tx:'大腸内視鏡・生検、血液検査、ステロイド・5-ASA製剤',r:{rg:['llq','diffuse'],qu:['dull','colic'],fi:['tenderness','fever','melena'],ti:['days','weeks'],du:['progressive'],age:['young','middle']}},
+  {name:'潰瘍性大腸炎（増悪期）',group:'下腹部・左下腹部（UC）',urgency:'mid',ul:'準緊急',features:'血性粘液便・下痢・下腹部正中〜左下腹部痛の慢性反復。直腸から連続性に口側へ広がる炎症が特徴。再燃と寛解を繰り返す。発熱・体重減少。大腸内視鏡が確診。若年〜中年に多い。',ft:'下腹部正中〜左下腹部圧痛、血性粘液便・下痢、発熱',tx:'大腸内視鏡・生検、血液検査（CRP・Hb）、ステロイド・5-ASA製剤',r:{rg:['llq','sup','diffuse'],qu:['dull','colic'],fi:['tenderness','fever','melena'],ti:['days','weeks'],du:['progressive'],age:['young','middle']}},
+  {name:'クローン病（増悪期）',group:'右下腹部（RLQ）',urgency:'mid',ul:'準緊急',features:'右下腹部〜回盲部痛が最多（回腸末端に好発）。口腔から肛門まで全消化管に非連続性に生じる。腹痛・下痢・体重減少・発熱。瘻孔・狭窄・膿瘍の合併に注意。若年に多く、虫垂炎との鑑別が重要。',ft:'右下腹部〜臍周囲圧痛、下痢（血便は少ない）、体重減少、発熱、肛門病変',tx:'腹部CT・MRI（腸管壁肥厚・瘻孔）、大腸内視鏡・小腸内視鏡、血液検査、5-ASA・免疫調節薬・生物学的製剤',r:{rg:['rlq','peri'],qu:['dull','colic'],fi:['tenderness','fever','nausea'],ti:['days','weeks'],du:['progressive','intermittent'],age:['young','middle'],sex_excl:null}},
   {name:'骨盤内炎症性疾患（PID）',group:'下腹部（Suprapubic）',urgency:'high',ul:'要緊急対応',features:'性活動期女性の下腹部痛・発熱・膿性帯下のTriad。子宮頸部挙上痛（Chandelier sign）。クラミジア・淋菌が主な原因。',ft:'子宮頸部挙上痛、下腹部圧痛、発熱、膿性帯下',tx:'膣分泌物培養、血液検査、抗生剤（クラミジア・淋菌カバー）',r:{rg:['sup','llq','rlq'],on:['gradual'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['days'],sex:'female',sex_excl:'male',age:['young','middle']}},
   {name:'子宮内膜症',group:'下腹部（Suprapubic）',urgency:'mid',ul:'準緊急',features:'月経周期と連動した下腹部〜骨盤痛。性交痛（深部性交痛）。月経困難症。慢性経過。不妊の原因にも。育齢期女性のみ。',ft:'下腹部〜骨盤圧痛、月経時増悪',tx:'婦人科診察・経腟超音波、腹腔鏡（確定診断）、ホルモン療法',r:{rg:['sup','llq','rlq'],qu:['dull','sharp','colic'],ti:['weeks'],du:['intermittent','progressive'],sex:'female',sex_excl:'male',age:['young','middle']}},
   {name:'膀胱炎',group:'下腹部（Suprapubic）',urgency:'low',ul:'非緊急',features:'下腹部の鈍痛・不快感。排尿時痛・頻尿・残尿感。発熱は通常なし。発熱があれば腎盂腎炎を疑う。女性に圧倒的に多い。',ft:'下腹部圧痛（軽度）、排尿症状、発熱なし',tx:'尿検査・培養、抗生剤（経口フルオロキノロン・セフェム）',r:{rg:['sup'],qu:['dull','sharp'],fi:['tenderness'],ti:['hours','days'],du:['constant'],sex:'female'}},
   {name:'前立腺炎',group:'下腹部（Suprapubic）',urgency:'mid',ul:'準緊急',features:'下腹部〜会陰部の鈍痛・不快感。排尿困難・頻尿・残尿感。発熱（急性細菌性）。直腸診で前立腺圧痛。男性のみ。',ft:'下腹部〜会陰部圧痛、前立腺圧痛、排尿症状、発熱',tx:'尿検査・培養、前立腺特異抗原（PSA）、抗生剤（ニューキノロン）',r:{rg:['sup'],qu:['dull'],fi:['tenderness','fever'],ti:['hours','days'],sex:'male',sex_excl:'female',age:['middle','elderly','young']}},
-  {name:'尿管結石',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'突然の側腹部〜鼠径部・外陰部への放散疝痛。体動で変わらない（特徴的）。転げ回るほどの激痛。血尿。悪心嘔吐。男性に多い。',ft:'側腹部圧痛、CVA叩打痛、血尿（顕微鏡的〜肉眼的）',tx:'尿検査（血尿）、腹部単純CT、鎮痛薬（NSAIDs優先）、水分補給',r:{rg:['flank','rlq','llq'],on:['sudden','acute'],qu:['colic','sharp'],ra:['groin'],fi:['nausea'],sv:5,sex:'male',age:['young','middle','elderly']}},
-  {name:'腎盂腎炎',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'発熱（高熱38〜40℃）・悪寒・側腹部痛のTriad。CVA叩打痛陽性が特徴的。膀胱炎症状の先行。女性に多い。',ft:'CVA叩打痛、発熱・悪寒、側腹部圧痛、排尿症状',tx:'尿培養・血液培養、抗生剤（点滴）、腹部CT（閉塞・膿瘍除外）',r:{rg:['flank'],on:['gradual','acute'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['hours','days'],sex:'female'}},
+  {name:'尿管結石',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'突然の側腹部〜鼠径部・外陰部への放散疝痛。体動で変わらない（特徴的）。転げ回るほどの激痛。血尿。悪心嘔吐。男性に多い。',ft:'側腹部圧痛、CVA叩打痛、血尿（顕微鏡的〜肉眼的）',tx:'尿検査（血尿）、腹部単純CT、鎮痛薬（NSAIDs優先）、水分補給',r:{rg:['r_flank','l_flank','flank','rlq','llq'],on:['sudden','acute'],qu:['colic','sharp'],ra:['groin'],fi:['nausea'],sv:5,sex:'male',age:['young','middle','elderly']}},
+  {name:'腎盂腎炎',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'発熱（高熱38〜40℃）・悪寒・側腹部痛のTriad。CVA叩打痛陽性が特徴的。膀胱炎症状の先行。女性に多い。',ft:'CVA叩打痛、発熱・悪寒、側腹部圧痛、排尿症状',tx:'尿培養・血液培養、抗生剤（点滴）、腹部CT（閉塞・膿瘍除外）',r:{rg:['r_flank','l_flank','flank'],on:['gradual','acute'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['hours','days'],sex:'female'}},
   {name:'急性腸炎（感染性）',group:'全腹部・びまん性',urgency:'mid',ul:'準緊急',features:'発熱・悪心嘔吐・下痢・腹痛。食事歴（食中毒）・集団発生。通常数日で自然軽快。細菌性は血便を伴うことあり。',ft:'びまん性圧痛（軽度）、発熱、悪心嘔吐、下痢',tx:'輸液・電解質補正、必要時抗生剤（細菌性）、便培養',r:{rg:['diffuse','peri'],on:['acute'],qu:['colic','dull'],fi:['nausea','fever'],du:['intermittent']}},
   {name:'過敏性腸症候群（IBS）',group:'全腹部・びまん性',urgency:'low',ul:'非緊急',features:'排便で軽減する腹痛。慢性反復性。下痢型・便秘型・混合型。若年〜中年女性に多い。ストレスと関連。器質的疾患の除外が必要。',ft:'びまん性圧痛（軽度〜なし）、腸音亢進',tx:'生活習慣指導・ストレス管理、薬物療法（止痢薬・緩下薬・腸管機能調整薬）',r:{rg:['diffuse','peri','llq'],qu:['colic','dull','bloating'],pr:['defec_better'],ti:['weeks'],du:['intermittent'],sex:'female',age:['young','middle']}},
-  {name:'帯状疱疹（皮疹出現前）',group:'腹腔外・全身疾患',urgency:'mid',ul:'準緊急',features:'皮疹出現の1〜3日前に片側性の灼熱感・チクチク感。デルマトームに沿う体表の痛み。高齢者・免疫低下者に多い。',ft:'片側性の体表に沿う痛み（皮疹なし）、アロディニア',tx:'皮膚科コンサルト、抗ウイルス薬（アシクロビルなど）の早期投与',r:{rg:['flank','rug','lug','rlq','llq'],qu:['burning','sharp'],pr:['move_worse'],on:['gradual'],age:['elderly','middle']}},
+  {name:'帯状疱疹（皮疹出現前）',group:'腹腔外・全身疾患',urgency:'mid',ul:'準緊急',features:'皮疹出現の1〜3日前に片側性の灼熱感・チクチク感。デルマトームに沿う体表の痛み。高齢者・免疫低下者に多い。',ft:'片側性の体表に沿う痛み（皮疹なし）、アロディニア',tx:'皮膚科コンサルト、抗ウイルス薬（アシクロビルなど）の早期投与',r:{rg:['r_flank','l_flank','flank','rug','lug','rlq','llq'],qu:['burning','sharp'],pr:['move_worse'],on:['gradual'],age:['elderly','middle']}},
 ];
 
 // ===== スコアリング =====
@@ -559,6 +640,29 @@ function setSex(s){
   document.getElementById('sex-female').className='sex-btn'+(st.sex==='female'?' sel-female':'');
   renderInputBar();
 }
+function selRegion(v){
+  st.region = st.region===v ? null : v;
+  renderSvgRegion();
+  renderInputBar();
+}
+function renderSvgRegion(){
+  REGIONS_SVG.forEach(r=>{
+    const cell=document.getElementById('reg-'+r.v);
+    const lbl=document.getElementById('lbl-'+r.v);
+    const sub=document.getElementById('sub-'+r.v);
+    const sel=st.region===r.v;
+    if(cell){
+      cell.style.fill=sel?'rgba(83,74,183,.18)':'transparent';
+      cell.style.stroke=sel?'#534AB7':'none';
+      cell.style.strokeWidth=sel?'2':'0';
+    }
+    if(lbl)lbl.style.fill=sel?'#3C3489':'#555';
+    if(sub)sub.style.fill=sel?'#534AB7':'#888';
+  });
+  // 追加チップ更新
+  const extra=document.getElementById('region-extra');
+  if(extra) extra.innerHTML=REGIONS_EXTRA.map(r=>`<div class="chip${st.region===r.v?' sel':''}" onclick="selRegion('${r.v}')">${r.label}<small style="margin-left:4px;opacity:.6;font-size:10px">${r.note}</small></div>`).join('');
+}
 function ps(k,v){st[k]=st[k]===v?null:v;renderInput();}
 function pm(k,v){st[k].includes(v)?st[k]=st[k].filter(x=>x!==v):st[k].push(v);renderInput();}
 function pickSev(n){
@@ -589,10 +693,7 @@ function renderInput(){
   document.getElementById('onset-chips').innerHTML=ONSET.map(i=>`<div class="chip${st.onset===i.v?' sel':''}" onclick="ps('onset','${i.v}')"><i class="ti ${i.icon}"></i>${i.label}</div>`).join('');
   document.getElementById('provoke-chips').innerHTML=PROVOKE.map(i=>`<div class="chip${st.provoke.includes(i.v)?' sel':''}" onclick="pm('provoke','${i.v}')"><i class="ti ${i.icon}"></i>${i.label}</div>`).join('');
   document.getElementById('quality-chips').innerHTML=QUALITY.map(i=>`<div class="chip${st.quality===i.v?' sel':''}" onclick="ps('quality','${i.v}')"><i class="ti ${i.icon}"></i>${i.label}</div>`).join('');
-  document.getElementById('region-grid').innerHTML=REGIONS.map(r=>{
-    const wide=r.v==='diffuse'||r.v==='flank';
-    return`<div class="rg-cell${st.region===r.v?' sel':''}${wide?' rg-wide':''}" onclick="ps('region','${r.v}')"><i class="ti ${r.icon}"></i><span>${r.label}</span><small>${r.note}</small></div>`;
-  }).join('');
+  renderSvgRegion();
   document.getElementById('radiation-chips').innerHTML=RADIATION.map(i=>`<div class="chip${st.radiation===i.v?' sel':''}" onclick="ps('radiation','${i.v}')">${i.label}</div>`).join('');
   // NRS
   const slider=document.getElementById('nrs-slider');
@@ -652,6 +753,74 @@ function renderResult(){
   if(!scored.length){
     html+=`<div class="empty"><i class="ti ti-search"></i>条件に合う疾患が見つかりません。<br>入力を追加してください。</div>`;
     area.innerHTML=html; return;
+  }
+
+  // ── 次に確認すべき候補を計算
+  // 上位疾患（スコア上位5件）のmissKeysと、未入力でスコアに影響しうる項目を集計
+  const top5=scored.slice(0,5);
+  const missCounts={};
+  // miss項目の集計
+  top5.forEach(d=>{
+    d.missKeys.forEach(k=>{missCounts[k]=(missCounts[k]||0)+1;});
+  });
+  // 上位疾患が持つ所見条件のうち未確認のものを抽出
+  const unconfirmedFindings=new Map();
+  const unconfirmedKeys={onset:!st.onset,quality:!st.quality,region:!st.region,radiation:!st.radiation,timing:!st.timing,duration:!st.duration};
+  top5.forEach(d=>{
+    (d.r.fi||[]).forEach(fv=>{
+      if(!st.findings.includes(fv)&&!st.findings.includes('none_finding')){
+        unconfirmedFindings.set(fv,(unconfirmedFindings.get(fv)||0)+1);
+      }
+    });
+  });
+  // 所見候補：上位2件以上で参照されているもの
+  const suggestedFindings=[...unconfirmedFindings.entries()]
+    .filter(([,cnt])=>cnt>=2)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,6)
+    .map(([fv])=>FINDINGS.find(f=>f.v===fv))
+    .filter(Boolean);
+  // OPQRST未入力の候補
+  const missingInputs=[];
+  if(!st.onset) missingInputs.push({label:'発症様式（O）',icon:'ti-bolt'});
+  if(!st.quality) missingInputs.push({label:'痛みの性質（Q）',icon:'ti-activity'});
+  if(!st.region) missingInputs.push({label:'部位（R）',icon:'ti-map-pin'});
+  if(!st.radiation) missingInputs.push({label:'放散痛（R）',icon:'ti-arrows-up-left-down-right'});
+  if(st.severity===null) missingInputs.push({label:'重症度（S）',icon:'ti-gauge'});
+  if(!st.timing) missingInputs.push({label:'持続時間（T）',icon:'ti-clock'});
+  if(st.age===null) missingInputs.push({label:'年齢',icon:'ti-user'});
+  if(!st.sex) missingInputs.push({label:'性別',icon:'ti-gender-bigender'});
+
+  const hasNext = suggestedFindings.length>0 || missingInputs.length>0;
+  if(hasNext){
+    html+=`<div class="next-section"><div class="next-title"><i class="ti ti-bulb"></i>次に確認すると推論が絞り込まれます</div><div class="next-groups">`;
+    if(suggestedFindings.length){
+      html+=`<div class="next-group"><div class="next-group-label">身体所見・バイタル</div><div class="next-pills">`;
+      suggestedFindings.forEach(f=>{
+        html+=`<span class="next-pill" onclick="goInput('sec-findings')" style="cursor:pointer"><i class="ti ${f.icon}"></i>${f.label}</span>`;
+      });
+      html+=`</div></div>`;
+    }
+    if(missingInputs.length){
+      // 各問診項目をそれぞれのセクションIDにマッピング
+      const sectionMap={
+        '発症様式（O）':'sec-onset',
+        '痛みの性質（Q）':'sec-quality',
+        '部位（R）':'sec-region',
+        '放散痛（R）':'sec-region',
+        '重症度（S）':'sec-severity',
+        '持続時間（T）':'sec-timing',
+        '年齢':'sec-patient',
+        '性別':'sec-patient',
+      };
+      html+=`<div class="next-group"><div class="next-group-label">未入力の問診項目</div><div class="next-pills">`;
+      missingInputs.slice(0,5).forEach(m=>{
+        const sid=sectionMap[m.label]||'sec-onset';
+        html+=`<span class="next-pill" onclick="goInput('${sid}')" style="background:#f5f4f0;color:#555;border-color:#ddd;cursor:pointer"><i class="ti ${m.icon}"></i>${m.label}</span>`;
+      });
+      html+=`</div></div>`;
+    }
+    html+=`</div></div>`;
   }
 
   // 全疾患統合：スコア降順、同スコアは緊急度降順（urgent > high > mid > low）
@@ -732,8 +901,19 @@ function goResult(){
   renderResult();
   document.getElementById('app').classList.add('app-active');
 }
-function goInput(){
+function goInput(sectionId){
   document.getElementById('app').classList.remove('app-active');
+  if(sectionId){
+    // アニメーション完了後にスクロール
+    setTimeout(()=>{
+      const el=document.getElementById(sectionId);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+      // ハイライト
+      el&&(el.style.transition='box-shadow .3s');
+      el&&(el.style.boxShadow='0 0 0 3px #534AB7');
+      setTimeout(()=>{if(el)el.style.boxShadow='';},1200);
+    },350);
+  }
 }
 
 // init
