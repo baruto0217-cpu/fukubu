@@ -96,6 +96,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
 .chk.sel .chk-box{background:var(--c-purple);border-color:var(--c-purple)}
 .chk i{font-size:16px;color:var(--c-sub);flex-shrink:0}
 .chk.sel i{color:var(--c-purple-mid)}
+/* Red Flag専用バリアント */
+.chk-red{border-color:#F0C4C4}
+.chk-red:active{background:#FFF5F5}
+.chk-red.sel{background:#FCEBEB;border-color:#E24B4A;color:#A32D2D}
+.chk-red .chk-box{border-color:#E0A0A0}
+.chk-red.sel .chk-box{background:#E24B4A;border-color:#E24B4A}
+.chk-red i{color:#C07070}
+.chk-red.sel i{color:#A32D2D}
 
 /* 患者属性 */
 .attr-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -130,6 +138,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
 
 /* 年齢アラート */
 .age-alert{background:#FFF8E6;border:1px solid #F0CC6A;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#7A5500;display:flex;align-items:flex-start;gap:8px;line-height:1.6}
+
+/* Red Flag警告バナー（最優先表示） */
+.red-alert-banner{background:#A32D2D;border-radius:14px;padding:14px 16px;margin-bottom:12px;color:#fff}
+.red-alert-title{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.red-alert-list{display:flex;flex-direction:column;gap:4px}
+.red-alert-item{font-size:13px;display:flex;align-items:flex-start;gap:6px;line-height:1.5;color:#FFE5E5}
 
 /* 疾患カード共通 */
 .dx-group{margin-bottom:12px}
@@ -346,6 +360,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
       <div class="sec-body"><div class="chks" id="findings-grid"></div></div>
     </div>
 
+    <div class="sec" id="sec-redflags" style="border-color:#F09595">
+      <div class="sec-head" style="background:#FFF5F5"><div class="opqrst-badge" style="background:#FCEBEB;color:#A32D2D"><i class="ti ti-alert-triangle"></i></div><div class="sec-label" style="color:#A32D2D">Red Flag（危険徴候）</div><span class="sec-hint">複数可・該当すれば必ず選択</span></div>
+      <div class="sec-body"><div class="chks" id="redflags-grid"></div></div>
+    </div>
+
   </div>
   <!-- 下部バー -->
   <div class="input-bar">
@@ -377,7 +396,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Hiragino San
 </div><!-- /app -->
 
 <script>
-const st={age:null,sex:null,onset:null,provoke:[],quality:null,region:null,radiation:null,severity:null,timing:null,duration:null,findings:[]};
+const st={age:null,sex:null,onset:null,provoke:[],quality:null,region:null,radiation:null,severity:null,timing:null,duration:null,findings:[],redflags:[]};
 
 const ONSET=[
   {v:'sudden',label:'突然・瞬間的',icon:'ti-bolt'},
@@ -450,7 +469,25 @@ const FINDINGS=[
   {v:'hypotension',label:'血圧低下（<90）',icon:'ti-arrow-down-circle'},
   {v:'nausea',label:'悪心・嘔吐',icon:'ti-mood-confuzed'},
   {v:'melena',label:'黒色便・下血',icon:'ti-droplet'},
+  {v:'cervical_motion_tenderness',label:'子宮頸部運動痛',icon:'ti-gender-female'},
   {v:'none_finding',label:'特記所見なし',icon:'ti-circle-off'},
+];
+
+// ===== Red Flag（重症度・緊急度を直接示す危険徴候）=====
+const REDFLAGS=[
+  {v:'shock',label:'ショックバイタル（血圧低下・頻脈・冷汗）',icon:'ti-alert-triangle'},
+  {v:'altered_mental',label:'意識障害・錯乱',icon:'ti-brain'},
+  {v:'peritoneal',label:'腹膜刺激症状（板状硬・反跳痛・筋性防御）',icon:'ti-shield-x'},
+  {v:'pulsatile_mass',label:'拍動性腹部腫瘤',icon:'ti-heart-rate-monitor'},
+  {v:'pulse_diff',label:'血圧・脈拍の左右差',icon:'ti-arrows-left-right'},
+  {v:'pain_out_of_proportion',label:'所見の割に痛みが強い（Pain out of proportion）',icon:'ti-alert-octagon'},
+  {v:'pregnancy_possible',label:'妊娠可能性あり（無月経・月経異常）',icon:'ti-gender-female'},
+  {v:'unilateral_sudden',label:'突然発症の片側下腹部痛（女性）',icon:'ti-bolt'},
+  {v:'testicular',label:'精巣挙上・陰嚢痛',icon:'ti-alert-circle'},
+  {v:'post_vomit_chest',label:'激しい嘔吐直後の胸部〜心窩部激痛',icon:'ti-vomit'},
+  {v:'jaundice_fever_pain',label:'黄疸＋発熱＋右上腹部痛（Charcot三徴）',icon:'ti-droplet-filled'},
+  {v:'severe_dehydration',label:'高度脱水・Kussmaul呼吸',icon:'ti-droplet-x'},
+  {v:'gi_bleeding',label:'吐血・下血・著明な貧血',icon:'ti-droplet'},
 ];
 
 const OL={sudden:'突然・瞬間的',acute:'急激（数分）',gradual:'徐々に',insidious:'緩やかに'};
@@ -464,42 +501,56 @@ const FL={tenderness:'圧痛',rebound:'反跳痛',guarding:'筋性防御',murphy
 
 // ===== 疾患データベース（sex:'male'|'female'=優先加点, sex_excl=除外, age=[]=年齢層優先）=====
 const DISEASES=[
-  {name:'大動脈解離 / 腹部大動脈瘤破裂',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'突然の引き裂かれるような激痛。背部・腰部へ放散。拍動性腹部腫瘤を触知することがある。ショック状態、血圧左右差。高齢男性・高血圧患者に多い。',ft:'拍動性腫瘤、血圧低下、頻脈、背部放散痛',tx:'即時造影CT、血管外科コンサルト、緊急手術',r:{rg:['diffuse','epigastric','peri'],on:['sudden','acute'],qu:['tearing','squeezing'],ra:['back'],fi:['pulsatile','hypotension','tachycardia'],sv:7,sex:'male',age:['elderly','middle']}},
-  {name:'食道破裂（Boerhaave症候群）',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'激しい嘔吐の直後に突然の胸部〜心窩部・背部の激痛（Macklerの三徴：胸痛・嘔吐・皮下気腫）。初診時に正しく診断される率は3割程度と低く見逃しに要注意。縦隔炎・ショックに至ると致死的。内視鏡処置後も誘因となる。',ft:'胸部〜心窩部・背部痛、皮下気腫（捻髪音）、発熱、頻脈、血圧低下、呼吸困難',tx:'胸腹部CT・胸部X線（縦隔気腫・胸水・気胸）、水溶性造影剤食道造影、外科緊急コンサルト、抗生剤、手術',r:{rg:['epigastric','diffuse'],on:['sudden'],qu:['sharp','tearing'],ra:['back','chest'],fi:['nausea','fever','tachycardia','hypotension'],sv:7}},
-  {name:'消化管穿孔（潰瘍穿孔など）',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'突然発症の激しい腹痛。板状硬・筋性防御が典型的。腹部X線で遊離ガス。胃潰瘍・十二指腸潰瘍の既往。男性・高齢者に多い。',ft:'筋性防御（板状硬）、反跳痛、発熱',tx:'腹部X線・CT、緊急外科コンサルト、手術',r:{rg:['epigastric','diffuse'],on:['sudden'],qu:['sharp'],fi:['guarding','rebound','tenderness'],age:['middle','elderly','young']}},
-  {name:'腸管虚血 / 上腸間膜動脈閉塞',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'激痛の割に腹部所見が乏しい（Pain out of proportion）。心房細動などの塞栓源。食後増悪の既往。進行するとショック・腹膜刺激症状。高齢者に多い。突然の腹痛で原因が説明しにくい場合は必ず考慮。',ft:'初期は所見が乏しい（これが最大の特徴）、進行でショック・腹膜刺激症状',tx:'造影CT（腸管造影）、血管外科・消化器外科コンサルト、緊急手術',r:{rg:['peri','diffuse','epigastric','rlq','llq'],on:['sudden','acute'],qu:['diffuse_q','dull','sharp'],fi:['tachycardia','hypotension','nausea'],age:['elderly','middle']}},
-  {name:'絞扼性腸閉塞',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'激しい間欠性疝痛と嘔吐。腸蠕動音亢進→消失。腹部膨満。腹部手術歴・ヘルニア既往。腸管壊死に至ると致死的。',ft:'腹部膨満、腸蠕動音変化、嘔吐、発熱（壊死期）',tx:'腹部CT、緊急外科コンサルト、手術',r:{rg:['peri','diffuse','rlq','llq','sup'],on:['sudden','acute'],qu:['colic','sharp'],du:['intermittent','progressive'],fi:['nausea','tachycardia','tenderness']}},
-  {name:'子宮外妊娠破裂',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'育齢期女性の突然の下腹部〜骨盤痛。腹腔内出血によるショック。月経遅延・性器出血の場合あり。hCG陽性が決め手。',ft:'下腹部圧痛、腹膜刺激症状、ショック徴候、性器出血',tx:'妊娠反応検査（hCG）、経腟超音波、婦人科緊急コンサルト、手術',r:{rg:['sup','rlq','llq'],on:['sudden','acute'],qu:['sharp'],fi:['hypotension','tachycardia','tenderness'],sex:'female',sex_excl:'male',age:['young']}},
-  {name:'卵巣囊腫茎捻転',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'育齢期女性の突然の下腹部痛。強い悪心嘔吐を伴う。体動で悪化。卵巣腫瘤の既往歴。卵巣血流遮断→壊死。',ft:'下腹部圧痛（一側性）、強い悪心嘔吐、腫瘤触知することも',tx:'経腟超音波（ドプラ血流評価）、婦人科緊急コンサルト、腹腔鏡手術',r:{rg:['rlq','llq','sup'],on:['sudden'],qu:['sharp','colic'],fi:['nausea','tenderness'],pr:['move_worse'],sex:'female',sex_excl:'male',age:['young','middle']}},
-  {name:'急性心筋梗塞（下壁梗塞）',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'心窩部痛として来院することがある。冷汗・嘔気を伴う。虚血リスク因子（高齢・糖尿病・高血圧・喫煙）。12誘導心電図変化が決め手。',ft:'冷汗、悪心嘔吐、胸部・肩への放散、頻脈',tx:'心電図（12誘導）、トロポニン・CK-MB、緊急心カテーテル',r:{rg:['epigastric'],on:['sudden','acute'],qu:['squeezing','dull'],ra:['chest','shoulder'],fi:['nausea','tachycardia'],age:['elderly','middle']}},
-  {name:'汎発性腹膜炎',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'全腹部の激痛。板状硬・筋性防御・反跳痛（三徴）。発熱・頻脈・ショック。穿孔・虫垂炎末期・腹腔内膿瘍から続発。',ft:'板状硬・筋性防御・反跳痛（三徴）、発熱、頻脈・ショック',tx:'腹部CT、緊急外科コンサルト、抗生剤、手術',r:{rg:['diffuse'],qu:['diffuse_q','sharp'],fi:['guarding','rebound','tenderness','fever','tachycardia'],sv:7}},
-  {name:'糖尿病性ケトアシドーシス（DKA）',group:'緊急疾患',urgency:'urgent',ul:'最緊急',features:'糖尿病既往（1型に多い）。腹痛・悪心嘔吐・脱水・意識障害。Kussmaul呼吸（深大な呼吸）。アセトン臭。血糖著明高値。',ft:'腹部全体の痛み（軽度〜中等度）、悪心嘔吐、脱水、意識変容',tx:'血糖・血ガス・電解質測定、大量輸液・インスリン療法、原因精査',r:{rg:['diffuse','epigastric'],qu:['dull','diffuse_q'],fi:['nausea','tachycardia'],on:['gradual','acute']}},
-  {name:'急性胆嚢炎',group:'右上腹部（RUQ）',urgency:'high',ul:'要緊急対応',features:'食後（特に脂肪食後）の右上腹部痛。Murphy徴候陽性が特徴的。右肩・背部への放散痛。発熱・CRP上昇。胆石の既往。女性・中高年に多い。',ft:'Murphy徴候陽性、右上腹部圧痛、発熱（38〜39℃）',tx:'腹部超音波、血液検査（WBC・CRP・肝胆道系酵素）、抗生剤、胆嚢摘出術',r:{rg:['rug'],on:['acute','gradual'],qu:['dull','sharp'],pr:['food_worse'],ra:['back','shoulder'],fi:['murphy','tenderness','fever'],sex:'female',age:['middle','elderly','young']}},
-  {name:'胆石疝痛',group:'右上腹部（RUQ）',urgency:'high',ul:'要緊急対応',features:'食後の間欠性右上腹部〜心窩部痛。右肩・背部放散。嘔吐で少し楽になることがある。発熱はなし（炎症なし）。女性・中高年に多い。',ft:'右上腹部圧痛、嘔吐、Murphy徴候（弱陽性）',tx:'腹部超音波、鎮痛薬（NSAIDs・オピオイド）、胆嚢摘出術（待機）',r:{rg:['rug','epigastric'],qu:['colic','sharp'],pr:['food_worse','vomit_better'],ra:['back','shoulder'],du:['intermittent'],sex:'female',age:['middle','elderly','young']}},
-  {name:'急性肝炎',group:'右上腹部（RUQ）',urgency:'high',ul:'要緊急対応',features:'右上腹部の鈍痛・圧迫感。黄疸・全身倦怠感・食欲不振を伴う。肝腫大。ウイルス性・薬剤性・アルコール性。',ft:'黄疸、肝腫大、右上腹部圧痛、全身倦怠感',tx:'肝機能検査（AST・ALT・ALP・ビリルビン）、ウイルスマーカー、腹部超音波',r:{rg:['rug'],qu:['dull'],fi:['jaundice','fever','tenderness'],ti:['days','weeks']}},
-  {name:'急性膵炎',group:'心窩部（Epigastric）',urgency:'high',ul:'要緊急対応',features:'心窩部〜左上腹部の帯状激痛。背部放散。前傾位・膝抱えで軽減。アルコール多飲（男性）・胆石（女性）が主な原因。悪心嘔吐を伴う。',ft:'心窩部〜左上腹部圧痛、腸音減弱、発熱',tx:'血清アミラーゼ・リパーゼ、腹部造影CT、大量輸液、絶食、鎮痛',r:{rg:['epigastric','lug'],on:['acute','gradual'],qu:['dull','squeezing'],pr:['lean_forward'],ra:['back'],fi:['nausea','fever','tenderness'],age:['young','middle']}},
-  {name:'胃・十二指腸潰瘍',group:'心窩部（Epigastric）',urgency:'mid',ul:'準緊急',features:'心窩部痛。胃潰瘍は食後増悪、十二指腸潰瘍は空腹時・夜間痛で食後軽減。黒色便（出血時）。H.pylori・NSAIDs使用歴。男性に多い。',ft:'心窩部圧痛、黒色便（出血時）',tx:'上部消化管内視鏡、H.pylori検査、PPI投与、出血時は内視鏡的止血',r:{rg:['epigastric'],qu:['burning','dull','sharp'],pr:['food_worse','food_better'],fi:['melena','tenderness'],ti:['hours','days','weeks'],sex:'male',age:['middle','elderly','young']}},
-  {name:'急性胃炎 / AGML',group:'心窩部（Epigastric）',urgency:'mid',ul:'準緊急',features:'心窩部の灼熱感・悪心嘔吐。食後悪化。ストレス・アルコール・NSAIDs・ウイルス感染が誘因。比較的急性経過。',ft:'心窩部圧痛（軽度）、悪心嘔吐',tx:'制酸薬・PPI投与、輸液、内視鏡（必要時）',r:{rg:['epigastric'],qu:['burning','dull'],pr:['food_worse'],on:['acute','gradual'],fi:['nausea']}},
-  {name:'胃アニサキス症',group:'心窩部（Epigastric）',urgency:'high',ul:'要緊急対応',features:'魚介類（サバ・イカ・アジなど）の刺身摂取後数時間以内の激しい心窩部痛。悪心嘔吐。内視鏡で虫体を除去すれば即座に症状消失。',ft:'心窩部強圧痛、悪心嘔吐、食事歴（魚介の刺身）',tx:'上部消化管内視鏡（診断・治療）— 虫体除去',r:{rg:['epigastric'],on:['acute'],qu:['sharp','colic'],pr:['food_worse'],fi:['nausea'],sv:6}},
-  {name:'胃食道逆流症（GERD）',group:'心窩部（Epigastric）',urgency:'low',ul:'非緊急',features:'食後・臥位で悪化する灼熱感・胸やけ。心窩部〜胸骨後方の灼熱感。酸逆流感。慢性経過。',ft:'特記所見なし（または軽度心窩部圧痛）',tx:'PPI投与、生活習慣改善（食後2時間は臥位を避ける）、上部消化管内視鏡',r:{rg:['epigastric'],qu:['burning'],pr:['food_worse'],ra:['chest'],ti:['weeks'],du:['intermittent']}},
-  {name:'脾梗塞',group:'左上腹部（LUQ）',urgency:'high',ul:'要緊急対応',features:'突然の左上腹部痛。左肩への放散痛（Kehr徴候）。心房細動・血液疾患・感染性心内膜炎などが背景疾患として多い。',ft:'左上腹部圧痛、発熱',tx:'腹部造影CT、基礎疾患の精査・治療',r:{rg:['lug','l_flank'],on:['sudden','acute'],qu:['sharp','dull'],ra:['shoulder'],fi:['fever','tenderness']}},
-  {name:'急性虫垂炎（初期・臍周囲期）',group:'臍周囲 → 右下腹部',urgency:'high',ul:'要緊急対応',features:'臍周囲痛から始まり右下腹部へ移動（Shifting pain）。食欲不振・発熱・悪心嘔吐。McBurney点圧痛。放置すると穿孔・腹膜炎。若年〜中年に多い。',ft:'臍周囲圧痛→McBurney点圧痛、Rovsing徴候、発熱',tx:'腹部CT・超音波、血液検査（WBC・CRP）、外科コンサルト（虫垂切除術）',r:{rg:['peri','rlq'],on:['gradual','acute'],qu:['dull','sharp'],fi:['tenderness','rovsing','rebound','fever','nausea'],du:['progressive'],age:['child','young','middle']}},
-  {name:'腸間膜リンパ節炎',group:'臍周囲 → 右下腹部',urgency:'mid',ul:'準緊急',features:'小児〜若年者に多い。上気道感染後の臍周囲〜右下腹部痛。虫垂炎との鑑別が重要。発熱・リンパ節腫脹。多くは保存的に軽快する。',ft:'臍周囲〜右下腹部圧痛（比較的軽度）、発熱、リンパ節腫脹',tx:'腹部超音波・CT（虫垂炎除外）、経過観察、対症療法',r:{rg:['peri','rlq'],on:['gradual'],qu:['dull'],fi:['tenderness','fever'],age:['child','young']}},
-  {name:'腸閉塞（イレウス）',group:'臍周囲・全腹部',urgency:'high',ul:'要緊急対応',features:'波状の疝痛と嘔吐。腹部膨満。腸蠕動音亢進（金属音）→消失（絞扼）。腹部手術歴・ヘルニアの既往。手術歴がある患者の腹痛は必ず考慮。',ft:'腹部膨満、腸蠕動音変化（亢進または消失）、嘔吐、排ガス停止',tx:'腹部X線・CT、経鼻胃管、輸液、外科コンサルト',r:{rg:['peri','diffuse','rlq','llq','sup','epigastric'],qu:['colic','bloating','dull'],on:['acute','gradual'],du:['intermittent','progressive'],fi:['nausea','tenderness']}},
-  {name:'急性虫垂炎',group:'右下腹部（RLQ）',urgency:'high',ul:'要緊急対応',features:'右下腹部の圧痛が主体。McBurney点圧痛・Rovsing徴候陽性。発熱・食欲不振。穿孔すると汎発性腹膜炎へ進展。若年〜中年に多い。',ft:'McBurney点圧痛、Rovsing徴候、反跳痛（Blumberg）、発熱',tx:'腹部CT・超音波、WBC・CRP、腹腔鏡下虫垂切除術',r:{rg:['rlq'],on:['gradual','acute'],qu:['sharp','dull'],fi:['tenderness','rovsing','rebound','psoas','fever','nausea'],du:['progressive'],sv:4,age:['child','young','middle']}},
-  {name:'S状結腸憩室炎',group:'左下腹部（LLQ）',urgency:'high',ul:'要緊急対応',features:'高齢者に多い左下腹部痛。発熱・CRP上昇。「左側の虫垂炎」とも呼ばれる。便秘・下痢を伴う。穿孔・膿瘍形成の合併に注意。',ft:'左下腹部圧痛、筋性防御（穿孔時）、発熱、腸音低下',tx:'腹部CT、抗生剤（セフェム+メトロニダゾール）、絶食・補液、外科コンサルト',r:{rg:['llq'],on:['gradual','acute'],qu:['dull','sharp'],fi:['tenderness','fever','rebound'],ti:['hours','days'],age:['elderly','middle']}},
-  {name:'虚血性腸炎',group:'左下腹部（LLQ）',urgency:'high',ul:'要緊急対応',features:'高齢者・動脈硬化背景の突然の左下腹部痛と血便のセット。腸管の一過性虚血。多くは保存的に軽快するが重症化に注意。',ft:'左下腹部圧痛、血便・下血',tx:'大腸内視鏡、腹部CT、輸液・絶食、抗生剤',r:{rg:['llq','diffuse'],on:['sudden','acute'],qu:['dull','sharp'],fi:['tenderness','melena'],age:['elderly','middle']}},
-  {name:'潰瘍性大腸炎（増悪期）',group:'下腹部・左下腹部（UC）',urgency:'mid',ul:'準緊急',features:'血性粘液便・下痢・下腹部正中〜左下腹部痛の慢性反復。直腸から連続性に口側へ広がる炎症が特徴。再燃と寛解を繰り返す。発熱・体重減少。大腸内視鏡が確診。若年〜中年に多い。',ft:'下腹部正中〜左下腹部圧痛、血性粘液便・下痢、発熱',tx:'大腸内視鏡・生検、血液検査（CRP・Hb）、ステロイド・5-ASA製剤',r:{rg:['llq','sup','diffuse'],qu:['dull','colic'],fi:['tenderness','fever','melena'],ti:['days','weeks'],du:['progressive'],age:['young','middle']}},
-  {name:'クローン病（増悪期）',group:'右下腹部（RLQ）',urgency:'mid',ul:'準緊急',features:'右下腹部〜回盲部痛が最多（回腸末端に好発）。口腔から肛門まで全消化管に非連続性に生じる。腹痛・下痢・体重減少・発熱。瘻孔・狭窄・膿瘍の合併に注意。若年に多く、虫垂炎との鑑別が重要。',ft:'右下腹部〜臍周囲圧痛、下痢（血便は少ない）、体重減少、発熱、肛門病変',tx:'腹部CT・MRI（腸管壁肥厚・瘻孔）、大腸内視鏡・小腸内視鏡、血液検査、5-ASA・免疫調節薬・生物学的製剤',r:{rg:['rlq','peri'],qu:['dull','colic'],fi:['tenderness','fever','nausea'],ti:['days','weeks'],du:['progressive','intermittent'],age:['young','middle'],sex_excl:null}},
-  {name:'骨盤内炎症性疾患（PID）',group:'下腹部（Suprapubic）',urgency:'high',ul:'要緊急対応',features:'性活動期女性の下腹部痛・発熱・膿性帯下のTriad。子宮頸部挙上痛（Chandelier sign）。クラミジア・淋菌が主な原因。',ft:'子宮頸部挙上痛、下腹部圧痛、発熱、膿性帯下',tx:'膣分泌物培養、血液検査、抗生剤（クラミジア・淋菌カバー）',r:{rg:['sup','llq','rlq'],on:['gradual'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['days'],sex:'female',sex_excl:'male',age:['young','middle']}},
-  {name:'子宮内膜症',group:'下腹部（Suprapubic）',urgency:'mid',ul:'準緊急',features:'月経周期と連動した下腹部〜骨盤痛。性交痛（深部性交痛）。月経困難症。慢性経過。不妊の原因にも。育齢期女性のみ。',ft:'下腹部〜骨盤圧痛、月経時増悪',tx:'婦人科診察・経腟超音波、腹腔鏡（確定診断）、ホルモン療法',r:{rg:['sup','llq','rlq'],qu:['dull','sharp','colic'],ti:['weeks'],du:['intermittent','progressive'],sex:'female',sex_excl:'male',age:['young','middle']}},
-  {name:'膀胱炎',group:'下腹部（Suprapubic）',urgency:'low',ul:'非緊急',features:'下腹部の鈍痛・不快感。排尿時痛・頻尿・残尿感。発熱は通常なし。発熱があれば腎盂腎炎を疑う。女性に圧倒的に多い。',ft:'下腹部圧痛（軽度）、排尿症状、発熱なし',tx:'尿検査・培養、抗生剤（経口フルオロキノロン・セフェム）',r:{rg:['sup'],qu:['dull','sharp'],fi:['tenderness'],ti:['hours','days'],du:['constant'],sex:'female'}},
-  {name:'前立腺炎',group:'下腹部（Suprapubic）',urgency:'mid',ul:'準緊急',features:'下腹部〜会陰部の鈍痛・不快感。排尿困難・頻尿・残尿感。発熱（急性細菌性）。直腸診で前立腺圧痛。男性のみ。',ft:'下腹部〜会陰部圧痛、前立腺圧痛、排尿症状、発熱',tx:'尿検査・培養、前立腺特異抗原（PSA）、抗生剤（ニューキノロン）',r:{rg:['sup'],qu:['dull'],fi:['tenderness','fever'],ti:['hours','days'],sex:'male',sex_excl:'female',age:['middle','elderly','young']}},
-  {name:'尿管結石',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'突然の側腹部〜鼠径部・外陰部への放散疝痛。体動で変わらない（特徴的）。転げ回るほどの激痛。血尿。悪心嘔吐。男性に多い。',ft:'側腹部圧痛、CVA叩打痛、血尿（顕微鏡的〜肉眼的）',tx:'尿検査（血尿）、腹部単純CT、鎮痛薬（NSAIDs優先）、水分補給',r:{rg:['r_flank','l_flank','flank','rlq','llq'],on:['sudden','acute'],qu:['colic','sharp'],ra:['groin'],fi:['nausea'],sv:5,sex:'male',age:['young','middle','elderly']}},
-  {name:'腎盂腎炎',group:'側腹部・腰部（Flank）',urgency:'high',ul:'要緊急対応',features:'発熱（高熱38〜40℃）・悪寒・側腹部痛のTriad。CVA叩打痛陽性が特徴的。膀胱炎症状の先行。女性に多い。',ft:'CVA叩打痛、発熱・悪寒、側腹部圧痛、排尿症状',tx:'尿培養・血液培養、抗生剤（点滴）、腹部CT（閉塞・膿瘍除外）',r:{rg:['r_flank','l_flank','flank'],on:['gradual','acute'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['hours','days'],sex:'female'}},
-  {name:'急性腸炎（感染性）',group:'全腹部・びまん性',urgency:'mid',ul:'準緊急',features:'発熱・悪心嘔吐・下痢・腹痛。食事歴（食中毒）・集団発生。通常数日で自然軽快。細菌性は血便を伴うことあり。',ft:'びまん性圧痛（軽度）、発熱、悪心嘔吐、下痢',tx:'輸液・電解質補正、必要時抗生剤（細菌性）、便培養',r:{rg:['diffuse','peri'],on:['acute'],qu:['colic','dull'],fi:['nausea','fever'],du:['intermittent']}},
-  {name:'過敏性腸症候群（IBS）',group:'全腹部・びまん性',urgency:'low',ul:'非緊急',features:'排便で軽減する腹痛。慢性反復性。下痢型・便秘型・混合型。若年〜中年女性に多い。ストレスと関連。器質的疾患の除外が必要。',ft:'びまん性圧痛（軽度〜なし）、腸音亢進',tx:'生活習慣指導・ストレス管理、薬物療法（止痢薬・緩下薬・腸管機能調整薬）',r:{rg:['diffuse','peri','llq'],qu:['colic','dull','bloating'],pr:['defec_better'],ti:['weeks'],du:['intermittent'],sex:'female',age:['young','middle']}},
-  {name:'帯状疱疹（皮疹出現前）',group:'腹腔外・全身疾患',urgency:'mid',ul:'準緊急',features:'皮疹出現の1〜3日前に片側性の灼熱感・チクチク感。デルマトームに沿う体表の痛み。高齢者・免疫低下者に多い。',ft:'片側性の体表に沿う痛み（皮疹なし）、アロディニア',tx:'皮膚科コンサルト、抗ウイルス薬（アシクロビルなど）の早期投与',r:{rg:['r_flank','l_flank','flank','rug','lug','rlq','llq'],qu:['burning','sharp'],pr:['move_worse'],on:['gradual'],age:['elderly','middle']}},
+  {id:1,name:'大動脈解離',group:'血管・循環器',urgency:'urgent',features:'突然発症の胸背部痛、心窩部痛、腹痛。引き裂かれる痛み。背部放散。高血圧・高齢に多い。',ft:'血圧左右差、脈拍左右差、神経症状、ショック',tx:'造影CT、心電図、血液検査、血管外科緊急コンサルト',r:{rg:['epigastric','diffuse','peri'],on:['sudden','acute'],qu:['tearing','squeezing'],ra:['back'],fi:['pulsatile','hypotension','tachycardia'],sv:7,age:['elderly','middle'],sex:'male'},redflag:['shock','pulse_diff']},
+  {id:2,name:'腹部大動脈瘤破裂',group:'血管・循環器',urgency:'urgent',features:'突然の腹痛・腰背部痛。高齢男性、高血圧、喫煙歴が背景に多い。',ft:'拍動性腹部腫瘤、低血圧、冷汗、意識障害',tx:'ベッドサイドエコー、造影CT、血管外科緊急コンサルト',r:{rg:['diffuse','epigastric','peri','flank'],on:['sudden','acute'],qu:['tearing','squeezing','sharp'],ra:['back'],fi:['pulsatile','hypotension','tachycardia'],sv:7,age:['elderly'],sex:'male'},redflag:['shock','pulsatile_mass']},
+  {id:3,name:'急性冠症候群',group:'循環器',urgency:'urgent',features:'胸痛だけでなく心窩部痛、嘔気、冷汗で来院することがある。高齢・糖尿病・高血圧・喫煙者で非典型的な腹痛として現れやすい。',ft:'冷汗、顔面蒼白、頻脈または徐脈、低血圧',tx:'12誘導心電図、トロポニン、心エコー、循環器緊急コンサルト',r:{rg:['epigastric'],on:['sudden','acute'],qu:['squeezing','dull'],ra:['chest','shoulder'],fi:['nausea','tachycardia'],age:['elderly','middle']},redflag:['chest_pain_radiation']},
+  {id:4,name:'腸管虚血 / 上腸間膜動脈閉塞',group:'血管・消化器',urgency:'urgent',features:'痛みが強い割に腹部所見が乏しい（Pain out of proportion）。心房細動、動脈硬化、塞栓リスクが背景。進行で腹膜刺激症状・ショック。',ft:'初期は圧痛軽度、進行で腹膜刺激症状・ショック',tx:'CTA腹部骨盤（造影CT・腸管造影）、血液ガス・乳酸測定、血管外科・消化器外科緊急コンサルト',r:{rg:['peri','diffuse','epigastric','rlq','llq'],on:['sudden','acute'],qu:['diffuse_q','dull','sharp'],fi:['tachycardia','hypotension','nausea'],age:['elderly','middle']},redflag:['pain_out_of_proportion']},
+  {id:5,name:'消化管穿孔',group:'消化器・外科',urgency:'urgent',features:'突然の激痛。胃十二指腸潰瘍、憩室、癌、内視鏡処置後などが背景。',ft:'筋性防御（板状硬）、反跳痛、発熱',tx:'腹部CT、胸腹部X線（遊離ガス）、緊急外科コンサルト、手術',r:{rg:['epigastric','diffuse'],on:['sudden'],qu:['sharp'],fi:['guarding','rebound','tenderness'],age:['middle','elderly','young']},redflag:['peritoneal_signs']},
+  {id:6,name:'食道破裂（Boerhaave症候群）',group:'消化器・胸部外科',urgency:'urgent',features:'激しい嘔吐の直後に突然の胸部〜心窩部・背部の激痛（Macklerの三徴：胸痛・嘔吐・皮下気腫）。初診時に正しく診断される率は低く見逃しに要注意。',ft:'胸部〜心窩部・背部痛、皮下気腫（捻髪音）、発熱、頻脈、血圧低下、呼吸困難',tx:'胸腹部CT・胸部X線（縦隔気腫）、水溶性造影剤食道造影、外科緊急コンサルト、抗生剤',r:{rg:['epigastric','diffuse'],on:['sudden'],qu:['sharp','tearing'],ra:['back','chest'],fi:['nausea','fever','tachycardia','hypotension'],sv:7},redflag:['post_vomit_chest_pain','subcutaneous_emphysema']},
+  {id:7,name:'汎発性腹膜炎',group:'外科',urgency:'urgent',features:'全腹部の激痛。板状硬・筋性防御・反跳痛（三徴）。発熱・頻脈・ショック。穿孔・虫垂炎末期・腹腔内膿瘍から続発。',ft:'板状硬・筋性防御・反跳痛（三徴）、発熱、頻脈・ショック',tx:'腹部CT、血液培養、乳酸測定、緊急外科コンサルト、抗生剤、手術',r:{rg:['diffuse'],qu:['diffuse_q','sharp'],fi:['guarding','rebound','tenderness','fever','tachycardia'],sv:7},redflag:['peritoneal_signs','shock']},
+  {id:8,name:'絞扼性腸閉塞',group:'外科',urgency:'urgent',features:'激しい疝痛と嘔吐。腸蠕動音亢進→消失。腹部膨満。腹部手術歴・ヘルニア既往。腸管壊死に至ると致死的。',ft:'腹部膨満、腸蠕動音変化、嘔吐、発熱（壊死期）',tx:'腹部造影CT、乳酸測定、緊急外科コンサルト、手術',r:{rg:['peri','diffuse','rlq','llq','sup'],on:['sudden','acute'],qu:['colic','sharp'],fi:['nausea','tachycardia','tenderness'],du:['intermittent','progressive']},redflag:['persistent_pain_with_obstruction']},
+  {id:9,name:'子宮外妊娠破裂',group:'婦人科',urgency:'urgent',features:'妊娠可能年齢女性の突然の下腹部痛。月経遅延・不正出血の場合あり。腹腔内出血によるショック。hCG陽性が決め手。',ft:'下腹部圧痛、腹膜刺激症状、ショック徴候、性器出血',tx:'尿/血中hCG検査、経腟超音波、婦人科緊急コンサルト、手術',r:{rg:['sup','rlq','llq'],on:['sudden','acute'],qu:['sharp'],fi:['hypotension','tachycardia','tenderness'],age:['young'],sex:'female',sex_excl:'male'},redflag:['pregnancy_possible_shock']},
+  {id:10,name:'卵巣茎捻転',group:'婦人科',urgency:'urgent',features:'突然の片側下腹部痛。強い悪心嘔吐を伴う。卵巣腫瘤の既往歴。体動で悪化。卵巣血流遮断→壊死。',ft:'下腹部圧痛（一側性）、強い悪心嘔吐、付属器圧痛',tx:'経腟超音波（ドプラ血流評価）、婦人科緊急コンサルト、腹腔鏡手術',r:{rg:['rlq','llq','sup'],on:['sudden'],qu:['sharp','colic'],pr:['move_worse'],fi:['nausea','tenderness'],age:['young','middle'],sex:'female',sex_excl:'male'},redflag:['unilateral_sudden_pain']},
+  {id:11,name:'精巣捻転',group:'泌尿器',urgency:'urgent',features:'陰嚢痛・下腹部痛・悪心。小児〜若年男性に多い。陰嚢痛を訴えず腹痛のみで受診する例があり見逃しに注意。発症から治療までの時間が精巣温存を左右する。',ft:'精巣挙上、精巣圧痛、挙睾筋反射消失',tx:'身体診察優先、精巣超音波（ドプラ）、泌尿器緊急コンサルト、緊急手術',r:{rg:['sup','rlq','llq'],on:['sudden'],qu:['sharp'],fi:['nausea','tenderness'],age:['child','young'],sex:'male',sex_excl:'female'},redflag:['testicular_elevation','cremasteric_reflex_absent']},
+  {id:12,name:'重症急性膵炎',group:'消化器',urgency:'urgent',features:'心窩部〜背部の持続激痛、嘔吐。アルコール多飲・胆石が背景。SIRS・臓器障害を伴うと重症。',ft:'頻脈、発熱、低血圧、意識障害、呼吸不全',tx:'血清リパーゼ・アミラーゼ、造影CT（重症評価）、腹部超音波、大量輸液、鎮痛',r:{rg:['epigastric','lug'],on:['acute','gradual'],qu:['dull','squeezing'],ra:['back'],pr:['lean_forward'],fi:['nausea','fever','tenderness','hypotension','tachycardia'],sv:7,age:['young','middle']},redflag:['sirs','organ_dysfunction']},
+  {id:13,name:'急性胆管炎',group:'胆道感染',urgency:'urgent',features:'発熱・右上腹部痛・黄疸（Charcotの三徴）。重症では意識障害・ショックを伴う（Reynoldsの五徴）。Tokyo Guidelinesでは全身炎症・胆汁うっ滞・画像所見を組み合わせて評価。',ft:'右上腹部圧痛、黄疸、悪寒戦慄、ショック・意識障害（重症時）',tx:'採血、血液培養、腹部超音波/CT/MRCP、抗菌薬、胆道ドレナージ',r:{rg:['rug','epigastric'],on:['acute','gradual'],qu:['dull','sharp'],fi:['jaundice','fever','tenderness','hypotension','tachycardia'],age:['elderly','middle']},redflag:['charcot_triad','reynolds_pentad']},
+  {id:14,name:'敗血症性ショックを伴う腹腔内感染',group:'感染症・外科',urgency:'urgent',features:'腹痛・発熱・悪寒・意識障害。腹腔内感染巣（虫垂炎、胆嚢炎、憩室炎などの進行）が背景。',ft:'低血圧、頻脈、頻呼吸、皮膚冷感',tx:'乳酸測定、血液培養、造影CT、広域抗菌薬、感染源コントロール（外科的処置）',r:{rg:['diffuse','rlq','llq','rug'],fi:['hypotension','tachycardia','fever','tenderness']},redflag:['shock_vitals','altered_mental_status']},
+  {id:15,name:'糖尿病性ケトアシドーシス',group:'代謝',urgency:'urgent',features:'腹痛・嘔吐・口渇・多尿・意識障害。糖尿病既往（1型に多い）。数時間〜1日以上かけて進行する。',ft:'脱水、頻呼吸（Kussmaul呼吸）、アセトン臭、頻脈、意識障害',tx:'血糖・血液ガス・ケトン体・電解質・腎機能測定、大量輸液・インスリン療法',r:{rg:['diffuse','epigastric'],on:['gradual','acute'],qu:['dull','diffuse_q'],fi:['nausea','tachycardia']},redflag:['severe_dehydration','altered_mental_status']},
+  {id:16,name:'急性虫垂炎',group:'右下腹部（RLQ）',urgency:'high',features:'臍周囲痛から右下腹部へ移動（Shifting pain）。食欲不振・悪心・発熱。McBurney点圧痛。穿孔すると汎発性腹膜炎へ進展。',ft:'McBurney点圧痛、反跳痛、Rovsing徴候、Psoas徴候、発熱',tx:'採血、尿検査、腹部CT・超音波、外科コンサルト（虫垂切除術）',r:{rg:['rlq','peri'],on:['gradual','acute'],qu:['sharp','dull'],fi:['tenderness','rovsing','rebound','psoas','fever','nausea'],du:['progressive'],sv:4,age:['child','young','middle']},redflag:['perforation_risk_elderly_pregnant']},
+  {id:17,name:'急性胆嚢炎',group:'右上腹部（RUQ）',urgency:'high',features:'右上腹部痛、食後悪化、発熱、悪心。Tokyo Guidelinesでは局所炎症・全身炎症・画像所見の組み合わせで診断。',ft:'Murphy徴候陽性、右上腹部圧痛、発熱（38〜39℃）',tx:'腹部超音波、採血（WBC・CRP・肝胆道系酵素）、CT、抗生剤、外科/消化器コンサルト',r:{rg:['rug'],on:['acute','gradual'],qu:['dull','sharp'],ra:['back','shoulder'],pr:['food_worse'],fi:['murphy','tenderness','fever'],age:['middle','elderly','young'],sex:'female'},redflag:['gangrenous_risk']},
+  {id:18,name:'胆石疝痛',group:'右上腹部（RUQ）',urgency:'high',features:'食後の右上腹部〜心窩部疝痛。右肩・背部放散。発熱はなし（炎症なし）。',ft:'右上腹部圧痛、嘔吐、発熱なし',tx:'腹部超音波、肝胆道系酵素、鎮痛薬（NSAIDs）、胆嚢摘出術（待機）',r:{rg:['rug','epigastric'],qu:['colic','sharp'],ra:['back','shoulder'],pr:['food_worse','vomit_better'],du:['intermittent'],age:['middle','elderly','young'],sex:'female'},redflag:['fever_suggests_progression']},
+  {id:19,name:'総胆管結石',group:'右上腹部（RUQ）',urgency:'high',features:'右上腹部痛、黄疸、褐色尿、灰白色便。胆管閉塞による胆汁うっ滞所見が特徴的。',ft:'黄疸、右上腹部圧痛',tx:'肝胆道系酵素・ビリルビン測定、腹部超音波、MRCP/EUS、ERCP検討',r:{rg:['rug','epigastric'],qu:['dull','colic'],fi:['jaundice','tenderness']},redflag:['fever_suggests_cholangitis']},
+  {id:20,name:'急性膵炎',group:'心窩部（Epigastric）',urgency:'high',features:'心窩部〜背部の痛み、前屈で軽減、嘔吐。アルコール多飲・胆石が主な原因。典型痛・膵酵素上昇・画像所見のうち2項目で診断。',ft:'心窩部圧痛、腸音低下、発熱',tx:'血清リパーゼ優先・アミラーゼ、腹部超音波、必要時CT、絶食・輸液・鎮痛',r:{rg:['epigastric','lug'],on:['acute','gradual'],qu:['dull','squeezing'],ra:['back'],pr:['lean_forward'],fi:['nausea','fever','tenderness']},redflag:['organ_dysfunction_warning']},
+  {id:21,name:'尿管結石',group:'側腹部・腰部（Flank）',urgency:'high',features:'側腹部から鼠径部への放散疝痛。体動で変わらず、転げ回るほどの激痛。血尿。男性に多い。',ft:'CVA叩打痛、血尿（顕微鏡的〜肉眼的）、落ち着きなく動く',tx:'尿検査（血尿）、腹部単純CT、腎超音波、鎮痛薬（NSAIDs優先）',r:{rg:['r_flank','l_flank','flank','rlq','llq'],on:['sudden','acute'],qu:['colic','sharp'],ra:['groin'],fi:['nausea'],sv:5,age:['young','middle','elderly'],sex:'male'},redflag:['fever_suggests_obstruction']},
+  {id:22,name:'閉塞性腎盂腎炎',group:'側腹部・腰部（Flank）',urgency:'high',features:'尿管結石症状に加え発熱・悪寒を伴う。尿路閉塞＋感染の組み合わせで敗血症リスクが高い。',ft:'CVA叩打痛、頻脈、低血圧',tx:'尿培養・血液培養、造影CT、抗菌薬、尿管ステント/腎瘻造設',r:{rg:['r_flank','l_flank','flank'],on:['acute'],qu:['colic','dull'],fi:['fever','tachycardia','hypotension']},redflag:['sepsis_risk_obstruction']},
+  {id:23,name:'腎盂腎炎',group:'側腹部・腰部（Flank）',urgency:'high',features:'発熱（高熱）・悪寒・側腹部痛のTriad。CVA叩打痛陽性。膀胱炎症状の先行。女性に多い。',ft:'CVA叩打痛、発熱・悪寒、側腹部圧痛、排尿症状',tx:'尿検査・尿培養・血液培養、必要時CT、抗生剤（点滴）',r:{rg:['r_flank','l_flank','flank'],on:['gradual','acute'],qu:['dull','sharp'],fi:['fever','tenderness','nausea'],ti:['hours','days'],sex:'female'},redflag:['pregnancy_diabetes_risk']},
+  {id:24,name:'憩室炎',group:'左下腹部（LLQ）',urgency:'high',features:'左下腹部痛が典型（日本では右側例もあり）。発熱・便通異常。「左側の虫垂炎」とも呼ばれる。',ft:'限局圧痛、反跳痛（穿孔時）、発熱、腸音低下',tx:'腹部CT、採血（CRP）、抗生剤または保存的治療、外科コンサルト',r:{rg:['llq','rlq'],on:['gradual','acute'],qu:['dull','sharp'],fi:['tenderness','fever','rebound'],ti:['hours','days'],age:['elderly','middle']},redflag:['abscess_perforation_risk']},
+  {id:25,name:'虚血性腸炎',group:'左下腹部（LLQ）',urgency:'high',features:'突然の腹痛、血便・暗赤色便。高齢者・動脈硬化背景。多くは保存的に軽快するが重症化に注意。',ft:'左下腹部圧痛、血便',tx:'腹部CT、採血、必要時内視鏡、輸液・絶食',r:{rg:['llq','diffuse'],on:['sudden','acute'],qu:['dull','sharp'],fi:['tenderness','melena'],age:['elderly','middle']},redflag:['peritoneal_signs_necrosis']},
+  {id:26,name:'腸閉塞',group:'臍周囲・全腹部',urgency:'high',features:'腹部膨満、嘔吐、排便排ガス停止、疝痛。腹部手術歴・ヘルニアの既往。持続痛・発熱・腹膜刺激は絞扼を疑う。',ft:'腹部膨満、腸蠕動音変化（亢進または消失）、嘔吐、排ガス停止',tx:'腹部CT・X線、経鼻胃管、輸液、外科コンサルト',r:{rg:['peri','diffuse','rlq','llq','sup','epigastric'],on:['acute','gradual'],qu:['colic','bloating','dull'],fi:['nausea','tenderness'],du:['intermittent','progressive']},redflag:['strangulation_warning']},
+  {id:27,name:'骨盤内炎症性疾患',group:'下腹部（Suprapubic）',urgency:'high',features:'性活動期女性の下腹部痛、不正出血、帯下、性交痛。クラミジア・淋菌が主な原因。子宮頸部運動痛・子宮圧痛・付属器圧痛が診断上重視される。',ft:'子宮頸部運動痛、子宮圧痛、付属器圧痛、発熱、膿性帯下',tx:'妊娠反応検査、STI検査、内診、経腟超音波、抗菌薬',r:{rg:['sup','llq','rlq'],on:['gradual'],qu:['dull','sharp'],fi:['fever','tenderness','nausea','cervical_motion_tenderness'],ti:['days'],age:['young','middle'],sex:'female',sex_excl:'male'},redflag:['tubo_ovarian_abscess_risk']},
+  {id:28,name:'卵巣出血 / 黄体破裂',group:'下腹部（Suprapubic）',urgency:'high',features:'排卵期〜黄体期の突然の片側下腹部痛。性交後に発症することもある。',ft:'片側下腹部圧痛、腹膜刺激、貧血（出血量による）',tx:'hCG検査、経腟超音波、ヘモグロビン測定、腹腔内出血評価',r:{rg:['rlq','llq','sup'],on:['sudden'],qu:['sharp'],fi:['tenderness','nausea'],age:['young'],sex:'female',sex_excl:'male'},redflag:['hemorrhagic_shock_risk']},
+  {id:29,name:'急性肝炎',group:'右上腹部（RUQ）',urgency:'high',features:'右上腹部不快感、倦怠感、食欲不振、黄疸、褐色尿。ウイルス性・薬剤性・アルコール性が主因。',ft:'黄疸、肝腫大、右上腹部圧痛、全身倦怠感',tx:'肝機能検査（AST・ALT・ビリルビン・PT-INR）、ウイルスマーカー、腹部超音波',r:{rg:['rug'],qu:['dull'],fi:['jaundice','fever','tenderness'],ti:['days','weeks']},redflag:['fulminant_hepatitis_risk']},
+  {id:30,name:'脾梗塞',group:'左上腹部（LUQ）',urgency:'high',features:'突然の左上腹部痛、左肩放散（Kehr徴候）。心房細動・血液疾患・感染性心内膜炎が背景疾患として多い。',ft:'左上腹部圧痛、発熱',tx:'腹部造影CT、心電図、塞栓源・血液疾患の精査',r:{rg:['lug','l_flank'],on:['sudden','acute'],qu:['sharp','dull'],ra:['shoulder'],fi:['fever','tenderness']},redflag:['splenic_rupture_risk']},
+  {id:31,name:'肺塞栓症',group:'循環器・呼吸器',urgency:'high',features:'胸痛、呼吸困難。上腹部痛として出現することがある。下肢深部静脈血栓のリスク因子を確認。',ft:'頻呼吸、頻脈、SpO2低下、下肢腫脹',tx:'Dダイマー、造影CT肺動脈、心電図、心エコー',r:{rg:['epigastric','rug','lug'],fi:['tachycardia','nausea']},redflag:['hypoxia_syncope_shock']},
+  {id:32,name:'急性胃十二指腸潰瘍出血',group:'心窩部（Epigastric）',urgency:'high',features:'心窩部痛、黒色便、吐血。NSAIDs・抗血栓薬使用歴が背景に多い。',ft:'貧血所見、頻脈、低血圧、黒色便',tx:'ヘモグロビン・BUN/Cr・凝固検査、上部内視鏡、輸血判断',r:{rg:['epigastric'],qu:['burning','dull'],fi:['melena','tenderness','tachycardia']},redflag:['hemorrhagic_shock_risk']},
+  {id:33,name:'炎症性腸疾患急性増悪',group:'左下腹部・全腹部',urgency:'high',features:'腹痛、下痢、血便、発熱、体重減少。クローン病・潰瘍性大腸炎の既往がある場合は増悪を疑う。',ft:'腹部圧痛、脱水、発熱',tx:'採血、便検査、CT、内視鏡は状態に応じて判断',r:{rg:['llq','rlq','diffuse'],fi:['fever','tenderness','melena'],ti:['days','weeks']},redflag:['toxic_megacolon_risk']},
+  {id:34,name:'中毒性巨大結腸症',group:'全腹部・びまん性',urgency:'high',features:'炎症性腸疾患または感染性腸炎を背景とした腹痛、著明な腹部膨満、発熱。穿孔・敗血症に至ると致死的。',ft:'著明な腹部膨満、圧痛、頻脈、意識障害',tx:'腹部X線・CT、採血、外科・消化器緊急コンサルト',r:{rg:['diffuse'],fi:['fever','tachycardia','tenderness']},redflag:['perforation_sepsis_risk']},
+  {id:35,name:'急性尿閉',group:'下腹部（Suprapubic）',urgency:'high',features:'下腹部痛、尿が出ない。前立腺肥大・薬剤性が背景に多い高齢男性。',ft:'膀胱膨隆、下腹部圧痛',tx:'膀胱超音波、導尿、尿検査、腎機能評価',r:{rg:['sup'],fi:['tenderness'],age:['elderly','middle'],sex:'male'},redflag:['postrenal_failure_risk']},
+  {id:36,name:'胃・十二指腸潰瘍',group:'心窩部（Epigastric）',urgency:'mid',features:'心窩部痛。胃潰瘍は食後増悪、十二指腸潰瘍は空腹時・夜間痛で食後軽減。H.pylori・NSAIDs使用歴。',ft:'心窩部圧痛、黒色便（出血時）',tx:'上部消化管内視鏡、H.pylori検査、PPI投与',r:{rg:['epigastric'],qu:['burning','dull','sharp'],pr:['food_worse','food_better'],fi:['melena','tenderness'],ti:['hours','days','weeks']},redflag:['perforation_bleeding_warning']},
+  {id:37,name:'急性胃炎 / AGML',group:'心窩部（Epigastric）',urgency:'mid',features:'心窩部の灼熱感・悪心嘔吐。食後悪化。アルコール・NSAIDs・ストレスが誘因。',ft:'心窩部圧痛（軽度）、悪心嘔吐',tx:'制酸薬・PPI投与、輸液、必要時内視鏡',r:{rg:['epigastric'],on:['acute','gradual'],qu:['burning','dull'],pr:['food_worse'],fi:['nausea']},redflag:['hematemesis_melena_warning']},
+  {id:38,name:'感染性腸炎',group:'全腹部・びまん性',urgency:'mid',features:'腹痛、下痢、嘔吐、発熱。食事歴・集団発生。潜伏時間は原因により数時間〜数日。',ft:'びまん性軽度圧痛、脱水',tx:'補液・電解質補正、重症/血便時は便培養',r:{rg:['diffuse','peri'],on:['acute'],qu:['colic','dull'],fi:['nausea','fever'],du:['intermittent']},redflag:['bloody_stool_high_fever']},
+  {id:39,name:'アニサキス症',group:'心窩部（Epigastric）',urgency:'high',features:'魚介類（サバ・イカ・アジ等）の刺身摂取後数時間以内の激しい心窩部痛。内視鏡で虫体除去すれば即座に症状消失。',ft:'心窩部強圧痛、悪心嘔吐',tx:'上部消化管内視鏡（診断・治療、虫体除去）',r:{rg:['epigastric'],on:['acute'],qu:['sharp','colic'],pr:['food_worse'],fi:['nausea'],sv:6},redflag:['allergic_reaction_warning']},
+  {id:40,name:'潰瘍性大腸炎増悪',group:'下腹部・左下腹部（UC）',urgency:'mid',features:'血性粘液便・下痢・下腹部正中〜左下腹部痛の慢性反復。直腸から連続性に口側へ広がる炎症が特徴。再燃と寛解を繰り返す。',ft:'下腹部正中〜左下腹部圧痛、血性粘液便・下痢、発熱',tx:'大腸内視鏡・生検、採血（CRP・Hb）、ステロイド・5-ASA製剤',r:{rg:['llq','sup','diffuse'],qu:['dull','colic'],fi:['tenderness','fever','melena'],ti:['days','weeks'],du:['progressive'],age:['young','middle']},redflag:['toxic_megacolon_risk']},
+  {id:41,name:'クローン病増悪',group:'右下腹部（RLQ）',urgency:'mid',features:'右下腹部〜回盲部痛が最多。口腔から肛門まで非連続性に病変が生じる。下痢・体重減少・肛門病変。瘻孔・狭窄・膿瘍の合併に注意。虫垂炎との鑑別が重要。',ft:'右下腹部〜臍周囲圧痛、下痢、体重減少、発熱、肛門病変',tx:'腹部CT・MRI（腸管壁肥厚・瘻孔）、大腸内視鏡・小腸内視鏡、採血',r:{rg:['rlq','peri'],qu:['dull','colic'],fi:['tenderness','fever','nausea'],ti:['days','weeks'],du:['progressive','intermittent'],age:['young','middle']},redflag:['fistula_abscess_perforation_risk']},
+  {id:42,name:'子宮内膜症',group:'下腹部（Suprapubic）',urgency:'mid',features:'月経周期と連動した下腹部〜骨盤痛。性交痛（深部性交痛）。月経困難症。慢性経過。不妊の原因にも。',ft:'骨盤圧痛、付属器腫瘤',tx:'婦人科診察・経腟超音波、MRI、腹腔鏡（確定診断）',r:{rg:['sup','llq','rlq'],qu:['dull','sharp','colic'],ti:['weeks'],du:['intermittent','progressive'],age:['young','middle'],sex:'female',sex_excl:'male'},redflag:['acute_presentation_excludes_torsion']},
+  {id:43,name:'前立腺炎',group:'下腹部（Suprapubic）',urgency:'mid',features:'会陰部痛、下腹部痛、排尿痛、頻尿、発熱。男性のみ。急性細菌性は敗血症リスクあり。',ft:'前立腺圧痛、発熱、排尿症状',tx:'尿検査・培養、血液培養、抗生剤（ニューキノロン）',r:{rg:['sup'],qu:['dull'],fi:['tenderness','fever'],ti:['hours','days'],age:['middle','elderly','young'],sex:'male',sex_excl:'female'},redflag:['sepsis_urinary_retention_risk']},
+  {id:44,name:'帯状疱疹前駆痛',group:'腹腔外・全身疾患',urgency:'mid',features:'皮疹出現の1〜3日前に片側性の灼熱感・チクチク感。デルマトームに沿う体表の痛み。高齢者・免疫低下者に多い。',ft:'片側性の体表に沿う痛み（皮疹なし）、アロディニア',tx:'皮膚科コンサルト、抗ウイルス薬の早期投与',r:{rg:['r_flank','l_flank','flank','rug','lug','rlq','llq'],on:['gradual'],qu:['burning','sharp'],pr:['move_worse'],age:['elderly','middle']},redflag:['immunocompromised_ocular_involvement']},
+  {id:45,name:'腸間膜リンパ節炎',group:'臍周囲 → 右下腹部',urgency:'mid',features:'小児〜若年者に多い。上気道感染後の臍周囲〜右下腹部痛。虫垂炎との鑑別が重要。多くは保存的に軽快する。',ft:'臍周囲〜右下腹部圧痛（比較的軽度）、発熱、リンパ節腫脹',tx:'腹部超音波・CT（虫垂炎除外）、経過観察、対症療法',r:{rg:['peri','rlq'],on:['gradual'],qu:['dull'],fi:['tenderness','fever'],age:['child','young']},redflag:['appendicitis_differential']},
+  {id:46,name:'膀胱炎',group:'下腹部（Suprapubic）',urgency:'low',features:'下腹部の鈍痛・不快感。排尿時痛・頻尿・残尿感。発熱は通常なし。女性に圧倒的に多い。',ft:'下腹部圧痛（軽度）、排尿症状、発熱なし',tx:'尿検査・培養、抗生剤（経口）',r:{rg:['sup'],qu:['dull','sharp'],fi:['tenderness'],ti:['hours','days'],du:['constant'],sex:'female'},redflag:['fever_cva_tenderness_suggests_pyelonephritis']},
+  {id:47,name:'過敏性腸症候群',group:'全腹部・びまん性',urgency:'low',features:'排便で軽減する腹痛。慢性反復性。下痢型・便秘型・混合型。若年〜中年女性に多い。器質的疾患の除外が必要。',ft:'びまん性圧痛（軽度〜なし）、腸音亢進',tx:'生活習慣指導・ストレス管理、薬物療法（止痢薬・緩下薬）',r:{rg:['diffuse','peri','llq'],qu:['colic','dull','bloating'],pr:['defec_better'],ti:['weeks'],du:['intermittent'],age:['young','middle'],sex:'female'},redflag:['alarm_symptoms_warning']},
+  {id:48,name:'胃食道逆流症',group:'心窩部（Epigastric）',urgency:'low',features:'食後・臥位で悪化する灼熱感・胸やけ。心窩部〜胸骨後方の灼熱感。酸逆流感。慢性経過。',ft:'特記所見なし（または軽度心窩部圧痛）',tx:'PPI投与、生活習慣改善（食後2〜3時間は臥位を避ける）',r:{rg:['epigastric'],qu:['burning'],ra:['chest'],pr:['food_worse'],ti:['weeks'],du:['intermittent']},redflag:['dysphagia_weight_loss_warning']},
+  {id:49,name:'機能性ディスペプシア',group:'心窩部（Epigastric）',urgency:'low',features:'心窩部痛、胃もたれ、早期満腹感。慢性反復性。検査で器質的異常を認めない。',ft:'異常所見なし〜軽度心窩部圧痛',tx:'H.pylori検査、PPI投与、警告症状があれば内視鏡',r:{rg:['epigastric'],qu:['dull','bloating'],pr:['food_worse'],ti:['weeks'],du:['intermittent']},redflag:['weight_loss_anemia_warning']},
+  {id:50,name:'便秘症 / 糞便塞栓',group:'全腹部・びまん性',urgency:'low',features:'下腹部痛、腹部膨満、排便困難。高齢者・寝たきり・オピオイドや抗コリン薬使用が背景。',ft:'腹部膨満、直腸内便塊',tx:'腹部X線（腸閉塞疑い時はCT）、直腸診、緩下薬・浣腸',r:{rg:['sup','diffuse','llq'],qu:['bloating','dull'],fi:['tenderness'],age:['elderly']},redflag:['obstruction_differential_warning']},
 ];
 
 // ===== スコアリング =====
@@ -573,7 +624,7 @@ function calcScore(d){
   }
 
   // 性別
-  if(r.sex_excl&&st.sex&&r.sex_excl===st.sex){return{s:0,hitKeys:[],missKeys:[]};}
+  if(r.sex_excl&&st.sex&&r.sex_excl===st.sex){return{s:0,hitKeys:[],missKeys:[],rfMatch:0};}
   if(st.sex&&r.sex){
     if(r.sex===st.sex){s+=20;hitKeys.push('性別');}
     else{missKeys.push('性別');}
@@ -585,7 +636,7 @@ function calcScore(d){
     if(r.age.includes(ag)){
       s+=15;hitKeys.push('年齢層');
     } else {
-      if(r.age_excl&&r.age_excl.includes(ag)){return{s:0,hitKeys:[],missKeys:[]};}
+      if(r.age_excl&&r.age_excl.includes(ag)){return{s:0,hitKeys:[],missKeys:[],rfMatch:0};}
       const ORDER=['child','young','middle','elderly'];
       const idxInput=ORDER.indexOf(ag);
       const closestIdx=r.age.map(a=>ORDER.indexOf(a)).reduce((best,cur)=>Math.abs(cur-idxInput)<Math.abs(best-idxInput)?cur:best,ORDER.indexOf(r.age[0]));
@@ -595,8 +646,60 @@ function calcScore(d){
     }
   }
 
-  if(d.urgency==='urgent'&&s>0)s=Math.max(s,20);
-  return{s,hitKeys,missKeys};
+  // ===== Red Flag 補正ロジック（v2.0設計）=====
+  // Red Flag選択と疾患のredflagタグの意味的対応をキーワードでマッチング
+  let rfMatch=0;
+  if(st.redflags.length && d.redflag){
+    const RF_MAP={
+      shock:['shock','shock_vitals','hemorrhagic_shock_risk','pregnancy_possible_shock'],
+      altered_mental:['altered_mental_status','severe_dehydration'],
+      peritoneal:['peritoneal_signs','peritoneal_signs_necrosis'],
+      pulsatile_mass:['pulsatile_mass'],
+      pulse_diff:['pulse_diff'],
+      pain_out_of_proportion:['pain_out_of_proportion'],
+      pregnancy_possible:['pregnancy_possible_shock'],
+      unilateral_sudden:['unilateral_sudden_pain'],
+      testicular:['testicular_elevation','cremasteric_reflex_absent'],
+      post_vomit_chest:['post_vomit_chest_pain','subcutaneous_emphysema'],
+      jaundice_fever_pain:['charcot_triad','reynolds_pentad'],
+      severe_dehydration:['severe_dehydration'],
+      gi_bleeding:['hemorrhagic_shock_risk'],
+    };
+    st.redflags.forEach(rf=>{
+      const tags=RF_MAP[rf]||[];
+      if(tags.some(t=>d.redflag.includes(t))){
+        s+=30; rfMatch++;
+      }
+    });
+    if(rfMatch>0) hitKeys.push('Red Flag一致');
+  }
+  // ショックバイタル選択時は全urgent疾患に底上げ（見逃し防止）
+  if(st.redflags.includes('shock') && d.urgency==='urgent'){
+    s+=30;
+  }
+  // 腹膜刺激症状選択時は外科系（urgent/high）疾患を底上げ
+  if(st.redflags.includes('peritoneal') && (d.urgency==='urgent'||d.urgency==='high')){
+    s+=25;
+  }
+
+  // ===== 見逃し防止の係数補正 =====
+  if(d.urgency==='urgent') s = s*1.3;
+  // 高齢者の血管疾患（大動脈解離・腹部大動脈瘤・腸管虚血・脾梗塞）
+  if(ag==='elderly' && ['大動脈解離','腹部大動脈瘤破裂','腸管虚血 / 上腸間膜動脈閉塞','脾梗塞'].includes(d.name)){
+    s = s*1.2;
+  }
+  // 妊娠可能女性の婦人科救急
+  const isFertileFemale = st.sex==='female' && st.age!==null && st.age>=15 && st.age<=50;
+  if(isFertileFemale && ['子宮外妊娠破裂','卵巣茎捻転','卵巣出血 / 黄体破裂'].includes(d.name)){
+    s = s*1.3;
+  }
+  // 糖尿病既往相当（findingsに該当なしのため年齢×ACS/DKAで簡易代用は行わない。Red Flagで明示選択時のみ）
+  if(st.redflags.includes('severe_dehydration') && d.name==='糖尿病性ケトアシドーシス'){
+    s = s*1.2;
+  }
+
+  if(d.urgency==='urgent'&&s>0)s=Math.max(s,20*1.3);
+  return{s,hitKeys,missKeys,rfMatch};
 }
 
 // ===== 入力 UI =====
@@ -704,6 +807,8 @@ function renderInput(){
   document.getElementById('timing-chips').innerHTML=TIMING.map(i=>`<div class="chip${st.timing===i.v?' sel':''}" onclick="ps('timing','${i.v}')">${i.label}</div>`).join('');
   document.getElementById('duration-chips').innerHTML=DURATION.map(i=>`<div class="chip${st.duration===i.v?' sel':''}" onclick="ps('duration','${i.v}')">${i.label}</div>`).join('');
   document.getElementById('findings-grid').innerHTML=FINDINGS.map(f=>`<div class="chk${st.findings.includes(f.v)?' sel':''}" onclick="pm('findings','${f.v}')"><div class="chk-box">${st.findings.includes(f.v)?'✓':''}</div><i class="ti ${f.icon}"></i><span>${f.label}</span></div>`).join('');
+  const rfGrid=document.getElementById('redflags-grid');
+  if(rfGrid) rfGrid.innerHTML=REDFLAGS.map(f=>`<div class="chk chk-red${st.redflags.includes(f.v)?' sel':''}" onclick="pm('redflags','${f.v}')"><div class="chk-box">${st.redflags.includes(f.v)?'✓':''}</div><i class="ti ${f.icon}"></i><span>${f.label}</span></div>`).join('');
   renderInputBar();
 }
 
@@ -721,7 +826,7 @@ function renderResult(){
   document.getElementById('result-scroll').scrollTop=0;
   cardId=0;
 
-  const scored=DISEASES.map(d=>{const{s,hitKeys,missKeys}=calcScore(d);return{...d,s,hitKeys,missKeys};}).filter(d=>d.s>0).sort((a,b)=>b.s-a.s);
+  const scored=DISEASES.map(d=>{const{s,hitKeys,missKeys,rfMatch}=calcScore(d);return{...d,s,hitKeys,missKeys,rfMatch};}).filter(d=>d.s>0).sort((a,b)=>b.s-a.s);
   const maxS=scored[0]?.s||1;
 
   // 育齢期女性アラート
@@ -729,6 +834,16 @@ function renderResult(){
   const fertilAlert = isFertile
     ? `<div class="age-alert"><i class="ti ti-alert-circle" style="font-size:16px;flex-shrink:0;margin-top:1px"></i><div><b>育齢期女性（${st.age}歳）</b> — 子宮外妊娠を必ず除外してください。下腹部痛のある育齢期女性には<b>hCG検査</b>が必須です。</div></div>`
     : '';
+
+  // Red Flag警告バナー（最優先表示）
+  let rfAlert='';
+  if(st.redflags.length){
+    const rfLabels=st.redflags.map(v=>REDFLAGS.find(f=>f.v===v)?.label).filter(Boolean);
+    rfAlert=`<div class="red-alert-banner">
+      <div class="red-alert-title"><i class="ti ti-alert-triangle"></i> Red Flag 該当あり — 緊急対応を検討してください</div>
+      <div class="red-alert-list">${rfLabels.map(l=>`<div class="red-alert-item"><i class="ti ti-point-filled" style="font-size:8px;margin-top:5px;flex-shrink:0"></i>${l}</div>`).join('')}</div>
+    </div>`;
+  }
 
   // 入力要約
   const sumTags=[];
@@ -742,8 +857,9 @@ function renderResult(){
   if(st.timing)sumTags.push(['T',TL[st.timing]]);
   st.provoke.filter(p=>p!=='nothing').forEach(p=>sumTags.push(['P',PL[p]]));
   st.findings.filter(f=>f!=='none_finding').forEach(f=>sumTags.push(['所見',FL[f]]));
+  if(st.redflags.length)sumTags.push(['Red Flag',st.redflags.length+'件選択']);
 
-  let html=fertilAlert+`<div class="sum-card">
+  let html=rfAlert+fertilAlert+`<div class="sum-card">
     <div class="sum-card-title"><i class="ti ti-clipboard-list" style="font-size:12px"></i> 入力内容</div>
     <div class="sum-grid">
       ${sumTags.map(([l,v])=>`<div class="sum-item"><label>${l}</label><span>${v}</span></div>`).join('')||'<div class="sum-item wide"><span class="none">入力なし</span></div>'}
